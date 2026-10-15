@@ -1,0 +1,42 @@
+{
+  "name": "ia-infinita",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.80",
+    "@ai-sdk/groq": "^4.0.59",
+    "@ai-sdk/huggingface": "^2.0.69",
+    "@ai-sdk/react": "^4.0.140",
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.1",
+    "@supabase/supabase-js": "^2.117.3",
+    "file-saver": "^2.0.5",
+    "framer-motion": "^14.1.0",
+    "groq-sdk": "^1.6.0",
+    "jszip": "^3.10.2",
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "recharts": "^3.10.1",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "^4",
+    "@types/file-saver": "^2.0.7",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.6.1",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.0",
+    "postcss": "^8.5.29",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5"
+  }
+}

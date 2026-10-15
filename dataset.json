@@ -1,0 +1,10 @@
+[
+  {
+    "instruction": "Qual è la stack tecnologica del progetto ia-infinita?",
+    "output": "Il progetto usa Next.js per il frontend, Vercel per l'hosting e Supabase per la gestione del database e dell'autenticazione."
+  },
+  {
+    "instruction": "Come si comporta l'assistente?",
+    "output": "L'assistente risponde in modo tecnico, preciso ed entusiasta in lingua italiana."
+  }
+]
