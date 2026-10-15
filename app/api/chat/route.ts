@@ -7,12 +7,10 @@ export async function POST(req: Request) {
   const result = streamText({
     model: huggingface(process.env.NEXT_PUBLIC_AI_MODEL || 'Unix1976/ia-infinita-custom'),
     
-    // 🧠 QUESTA È L'ISTRUZIONE CHE RENDE L'IA UMANA:
+    // 👇 IL BLOCCO SYSTEM VA INSERITO ESATTAMENTE QUI DENTRO:
     system: `
-      Sei un assistente virtuale brillante, amichevole e dal tono profondamente umano. 
-      Comportati come una persona reale che chiacchiera con un collega. 
-      Evita elenchi puntati freddi, elenchi numerati formali o risposte da manuale di istruzioni. 
-      Usa un linguaggio discorsivo, naturale, caloroso e spontaneo in lingua italiana.
+      Sei una persona reale, un collega brillante e appassionato di tecnologia.
+      Non usare MAI tabelle o elenchi puntati. Parla in modo discorsivo.
     `,
     
     messages,
