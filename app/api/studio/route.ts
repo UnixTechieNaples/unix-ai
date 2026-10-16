@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET() {
-  return NextResponse.json({ status: "API attiva" }, { status: 200 });
+  return NextResponse.json({ status: "API Groq GPT-OSS attiva" }, { status: 200 });
 }
 
 export async function POST(req: Request) {
@@ -24,17 +24,37 @@ export async function POST(req: Request) {
 
     const groq = new Groq({ apiKey });
 
-    const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: "Sei un assistente utile, rispondi sempre in italiano in modo chiaro e discorsivo." },
-        { role: "user", content: userPrompt }
-      ],
-      temperature: 0.7,
-      max_tokens: 2048,
-    });
+    // Modelli GPT-OSS ospitati su Groq come da tua dashboard
+    const modelsToTry = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "llama-3.3-70b-versatile"];
+    let replyText = null;
+    let lastError = "";
 
-    const replyText = completion.choices[0]?.message?.content || "Nessuna risposta generata.";
+    for (const modelName of modelsToTry) {
+      try {
+        const completion = await groq.chat.completions.create({
+          model: modelName,
+          messages: [
+            { role: "system", content: "Sei un assistente utile, rispondi sempre in italiano in modo chiaro e discorsivo." },
+            { role: "user", content: userPrompt }
+          ],
+          temperature: 0.7,
+          max_tokens: 2048,
+        });
+
+        replyText = completion.choices[0]?.message?.content;
+        if (replyText) break;
+      } catch (err: any) {
+        lastError = err?.message || "Errore sconosciuto";
+      }
+    }
+
+    if (!replyText) {
+      return NextResponse.json({
+        success: false,
+        reply: `Errore Groq GPT-OSS: ${lastError}`,
+        error: lastError
+      }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,
@@ -42,7 +62,7 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
-    console.error("ERRORE API:", error);
+    console.error("ERRORE API GROQ:", error);
     return NextResponse.json({
       success: false,
       reply: `Errore critico: ${error?.message || "Sconosciuto"}`,
