@@ -20,6 +20,48 @@ export async function processStudioCommand({ userPrompt, memoryContext }: { user
       };
     }
 
+    // Ricerca web automatica preventiva con Serper.dev
+    let webSearchResults = "";
+    if (userPrompt && (
+        userPrompt.toLowerCase().includes('cerca') || 
+        userPrompt.toLowerCase().includes('meteo') || 
+        userPrompt.toLowerCase().includes('notizie') || 
+        userPrompt.toLowerCase().includes('oggi') || 
+        userPrompt.toLowerCase().includes('aggiornat') ||
+        userPrompt.toLowerCase().includes('su google')
+    )) {
+      try {
+        const serperApiKey = process.env.SERPER_API_KEY || 'db5a1994d038daab4a8c40b2f4112b19cbe96a2a';
+        
+        const searchRes = await fetch('https://google.serper.dev/search', {
+          method: 'POST',
+          headers: {
+            'X-API-KEY': serperApiKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ q: userPrompt })
+        });
+
+        if (searchRes.ok) {
+          const data = await searchRes.json();
+          const snippets: string[] = [];
+          if (data.organic && Array.isArray(data.organic)) {
+            for (const item of data.organic) {
+              if (item.snippet) {
+                snippets.push(`- ${item.title}: ${item.snippet}`);
+              }
+              if (snippets.length >= 6) break;
+            }
+          }
+          if (snippets.length > 0) {
+            webSearchResults = `\n\nDATI AGGIORNATI DA INTERNET IN TEMPO REALE:\n${snippets.join('\n')}\n`;
+          }
+        }
+      } catch (e) {
+        console.error("Errore ricerca automatica orchestrator:", e);
+      }
+    }
+
     const groq = new Groq({ apiKey });
 
     const systemPrompt = `
@@ -28,9 +70,11 @@ REGOLE TASSATIVE:
 1. NON presentarti mai come Jarvis, non sei un terminale e non sei un sistema operativo. Presentati semplicemente come un assistente o un collega.
 2. È SEVERAMENTE VIETATO l'uso di tabelle, elenchi puntati o elenchi numerati.
 3. Rispondi SEMPRE e SOLO con paragrafi di testo discorsivo, fluido e naturale in lingua italiana, completando sempre le frasi senza tagliarle.
+4. Se ricevi informazioni aggiornate da internet, hai l'obbligo assoluto di leggerle e integrarle nella risposta.
 
 Memoria di contesto attuale del sistema:
 ${memoryContext || "Nessun contesto aggiuntivo."}
+${webSearchResults}
     `;
 
     let replyText: string | null = null;
@@ -46,7 +90,7 @@ ${memoryContext || "Nessun contesto aggiuntivo."}
             { role: "user", content: userPrompt }
           ],
           temperature: 0.7,
-          max_tokens: 4096, // Aumentato per impedire il taglio delle frasi
+          max_tokens: 4096,
         });
 
         replyText = completion.choices[0]?.message?.content || null;
