@@ -1,18 +1,19 @@
 import { NextResponse } from "next/server";
 import { processStudioCommand } from "@/lib/ai/orchestrator";
 
+// Forza Next.js a considerare questa rotta sempre dinamica (risolve l'errore di build)
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const { messages, userId, userName } = await req.json();
 
-    // Estraiamo l'ultimo messaggio dell'utente dalla cronologia inviata dal frontend
     const lastMessage = messages && messages.length > 0 ? messages[messages.length - 1].content : '';
 
     if (!lastMessage) {
       return NextResponse.json({ success: false, error: "Messaggio mancante." }, { status: 400 });
     }
 
-    // Eseguiamo il comando tramite l'orchestratore unificato
     const result = await processStudioCommand({
       userPrompt: lastMessage,
       userId,
