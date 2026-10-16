@@ -1,9 +1,11 @@
 import Groq from "groq-sdk";
 import { salvaUtente, getUtenti } from "@/lib/db/memory";
 
-// Usiamo UNICO modello stabile e garantito attivo su Groq
+// Lista modelli aggiornata con quelli presenti nel tuo pannello Groq
 const MODEL_CANDIDATES = [
-  "llama-3.3-70b-versatile"
+  "openai/gpt-oss-20b",
+  "llama-3.3-70b-versatile",
+  "llama-3.1-70b-versatile"
 ];
 
 export async function processStudioCommand({ userPrompt, memoryContext, userId, userName }: { userPrompt: string; memoryContext?: string; userId?: string; userName?: string }) {
