@@ -24,7 +24,15 @@ export async function POST(req: Request) {
 
     const groq = new Groq({ apiKey });
 
-    // Modelli GPT-OSS ospitati su Groq come da tua dashboard
+    const systemPrompt = `
+SEI UN'INTELLIGENZA ARTIFICIALE EVOLUTA CON CAPACITÀ DI SUPPORTO UNIVERSALE.
+
+REGOLE TASSATIVE SULLA FORMATTAZIONE:
+1. Non presentarti mai come Jarvis, presentati semplicemente come un assistente o un collega.
+2. È SEVERAMENTE VIETATO l'uso di tabelle, elenchi puntati o elenchi numerati di qualsiasi tipo.
+3. Rispondi SEMPRE e SOLO con paragrafi di testo discorsivo, fluido e naturale in lingua italiana, completando sempre le frasi senza tagliarle.
+    `;
+
     const modelsToTry = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "llama-3.3-70b-versatile"];
     let replyText = null;
     let lastError = "";
@@ -34,7 +42,7 @@ export async function POST(req: Request) {
         const completion = await groq.chat.completions.create({
           model: modelName,
           messages: [
-            { role: "system", content: "Sei un assistente utile, rispondi sempre in italiano in modo chiaro e discorsivo." },
+            { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt }
           ],
           temperature: 0.7,
