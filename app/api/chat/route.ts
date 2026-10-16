@@ -40,14 +40,12 @@ export async function POST(req: Request) {
     // Definiamo gli strumenti (tools) che l'IA può chiamare in autonomia
     tools: {
       webSearch: tool({
-        description: 'Cerca informazioni aggiornate su internet tramite Google quando l'utente richiede notizie recenti, di autoaggiornarsi o dati in tempo reale.',
+        description: "Cerca informazioni aggiornate su internet tramite Google quando l'utente richiede notizie recenti, di autoaggiornarsi o dati in tempo reale.",
         parameters: z.object({
           query: z.string().describe('La stringa o la domanda da cercare su Google'),
         }),
         execute: async ({ query }) => {
           try {
-            // Chiamata interna al nostro endpoint /api/web-search
-            // Nota: in ambiente serverless/Vercel usiamo l'URL assoluto o relativo basato sulla richiesta
             const host = req.headers.get('host') || 'localhost:3000';
             const protocol = host.includes('localhost') ? 'http' : 'https';
             
@@ -66,7 +64,6 @@ export async function POST(req: Request) {
       }),
     },
 
-    // Permettiamo all'IA di fare più passaggi se necessario (es. cerca, legge e risponde)
     maxSteps: 3,
   });
 
