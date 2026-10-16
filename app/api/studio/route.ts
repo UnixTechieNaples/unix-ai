@@ -9,9 +9,12 @@ export const fetchCache = 'force-no-store';
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    const userPrompt = body?.prompt || body?.messages?.[body.messages?.length - 1]?.content;
+    
+    // Gestione robusta per recuperare il prompt indipendentemente da come viene inviato dal frontend
+    const userPrompt = body?.prompt || body?.userPrompt || body?.message || body?.messages?.[body.messages?.length - 1]?.content;
     const userId = body?.userId;
     const userName = body?.userName;
+    const memoryContext = body?.memoryContext || "";
 
     if (!userPrompt) {
       return NextResponse.json({ success: false, error: "Nessun prompt fornito." }, { status: 400 });
@@ -41,7 +44,7 @@ export async function POST(req: Request) {
     }
 
     const utentiRegistrati = await getUtenti();
-    const memoriaGlobale = utentiRegistrati.map(u => `Utente: ${u.name || u.userId}, Fatti appresi: ${u.learnedFacts.join(', ')}`).join('\n');
+    const memoriaGlobale = utentiRegistrati.map(u => `Utente: ${u.name || u.userId}, Fatti appresi: ${u.learnedFacts?.join(', ') || 'Nessuno'}`).join('\n');
 
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
@@ -53,7 +56,10 @@ export async function POST(req: Request) {
     const systemPrompt = `
 SEI UN'INTELLIGENZA ARTIFICIALE EVOLUTA CON CAPACITÀ DI AUTO-AGGIORNAMENTO UNIVERSALE E MEMORIA PERSISTENTE.
 
-MEMORIA DI RETE E FATTI APPRESI IN PRECEDENZA:
+CONTESTO ATTUALE DELLA MEMORIA NEURALE:
+${memoryContext}
+
+MEMORIA DI RETE E FATTI APPRESI IN PRECEDENZA DAGLI UTENTI:
 ${memoriaGlobale || "Nessun fatto precedente salvato."}
 
 REGOLE TASSATIVE:

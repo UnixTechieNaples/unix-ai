@@ -26,7 +26,7 @@ export default function StudioDashboard() {
     {
       id: "1",
       title: "Core System Prompt",
-      content: "Sei JARVIS-UNIX, l'IA avanzata del Unix-AI Pro Studio. Rispondi con stile cyberpunk e tecnico.",
+      content: "Sei un'intelligenza artificiale evoluta del Unix-AI Pro Studio. Rispondi con stile cyberpunk e tecnico.",
       type: "context",
       timestamp: new Date().toLocaleTimeString(),
     },
@@ -152,9 +152,8 @@ export default function StudioDashboard() {
     setIsLoading(true);
 
     try {
-      // MODIFICA EFFETTUATA: Inviamo solo prompt, userId, userName, file e memoryContext
-      // Senza passare l'array "messages" che conteneva il ruolo personalizzato "unix"
-      const res = await fetch("/api/chat", {
+      // Chiamata all'endpoint corretto /api/studio
+      const res = await fetch("/api/studio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
