@@ -1,9 +1,11 @@
 import Groq from "groq-sdk";
 import { salvaUtente, getUtenti } from "@/lib/db/memory";
 
+// Lista modelli aggiornata con quelli presenti nel tuo pannello Groq
 const MODEL_CANDIDATES = [
   "llama-3.3-70b-versatile",
-  "llama-3.1-8b-instant"
+  "llama-3.1-8b-instant",
+  "llama-3.1-70b-versatile"
 ];
 
 export async function processStudioCommand({ userPrompt, memoryContext, userId, userName }: { userPrompt: string; memoryContext?: string; userId?: string; userName?: string }) {
@@ -17,11 +19,9 @@ export async function processStudioCommand({ userPrompt, memoryContext, userId, 
       };
     }
 
-    // 1. Recuperiamo la memoria esistente per dare continuità
     const utentiRegistrati = await getUtenti();
     const memoriaGlobale = utentiRegistrati.map(u => `Utente: ${u.name || u.userId}, Fatti appresi: ${u.learnedFacts.join(', ')}`).join('\n');
 
-    // 2. RICERCA WEB UNIVERSALE: Eseguiamo sempre una ricerca su Google per qualsiasi richiesta dell'utente
     let webSearchResults = "";
     if (userPrompt && userPrompt.trim().length > 0) {
       try {
@@ -50,7 +50,6 @@ export async function processStudioCommand({ userPrompt, memoryContext, userId, 
           if (snippets.length > 0) {
             webSearchResults = `\n\n[INFORMAZIONI FRESCHE DA INTERNET PER "${userPrompt}"]: \n${snippets.join('\n')}\n`;
             
-            // Salvataggio automatico nella memoria persistente per l'autoaggiornamento continuo
             if (userId) {
               await salvaUtente(userId, `Ricerca web su "${userPrompt}": ${snippets[0]}`, userName || "Utente");
             }
