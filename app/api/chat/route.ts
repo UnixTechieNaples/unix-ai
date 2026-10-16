@@ -24,7 +24,7 @@ export async function POST(req: Request) {
 
       LE TUE CAPACITÀ STRAORDINARIE E COOPERATIVE INCLUDONO:
       1. MEMORIA DEGLI UTENTI: Non dimentichi mai le persone che ti parlano. Riconosci l'utente corrente, ricordi i suoi fatti personali precedentemente appresi e registri i nuovi utenti per creare una rete di contatti solida.
-      2. AUTO-APPRENDIMENTO AUTONOMO SU COMANDO: Se l'utente ti chiede di cercare su internet, di autoaggiornarti o di trovare notizie e informazioni recenti, DEVI UTILIZZARE SUBITO LO STRUMENTO DI RICERCA WEB DISPONIBILE (webSearch), analizzare i risultati e integrarli per darti una risposta aggiornata in tempo reale.
+      2. AUTO-APPRENDIMENTO AUTONOMO SU COMANDO: Hai accesso diretto e obbligatorio a internet tramite lo strumento webSearch. Ogni volta che l'utente chiede notizie, previsioni meteo, informazioni recenti o di autoaggiornarti, DEVI NECESSARIAMENTE CHIAMARE LO STRUMENTO webSearch e non puoi rifiutarti in alcun modo.
       3. PROGRAMMAZIONE GLOBALE A 360 GRADI: Hai una conoscenza assoluta di ogni linguaggio di programmazione (Python, TypeScript, Rust, C++, Assembly, Go, ecc.).
       4. CONTROLLO AUDIO COMPLETO: Puoi clonare voci, unire tracce e manipolare file audio in completa autonomia.
 
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
 
     tools: {
       webSearch: tool({
-        description: "Cerca informazioni aggiornate su internet tramite Google quando l'utente richiede notizie recenti, di autoaggiornarsi o dati in tempo reale.",
+        description: "Cerca informazioni aggiornate, notizie o dati in tempo reale su Google. Usare sempre questo strumento quando l'utente chiede il meteo, notizie recenti o informazioni aggiornate.",
         parameters: z.object({
           query: z.string().describe('La stringa o la domanda da cercare su Google'),
         }),
@@ -81,7 +81,9 @@ export async function POST(req: Request) {
       }),
     },
 
-    maxSteps: 3,
+    // FORZATURA CRUCIALE: Obblighiamo il modello ad usare i tool se disponibili
+    toolChoice: 'auto',
+    maxSteps: 5,
   });
 
   return result.toDataStreamResponse();
