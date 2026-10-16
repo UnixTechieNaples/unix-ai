@@ -1,13 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Funzione helper per ottenere il client Supabase solo a runtime
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 // Funzione richiesta dall'orchestratore per leggere i dati e le memorie degli utenti
 export async function getUtenti() {
   try {
+    const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from('user_memories')
       .select('user_id, user_name, content');
@@ -38,19 +41,25 @@ export async function getUtenti() {
 // Verifica se l'utente è Super Admin
 export async function checkIsSuperAdmin(userId: string): Promise<boolean> {
   if (!userId) return false;
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
-    .single();
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
 
-  if (error || !data) return false;
-  return data.role === 'super_admin';
+    if (error || !data) return false;
+    return data.role === 'super_admin';
+  } catch (err) {
+    return false;
+  }
 }
 
 // Salvataggio interazione e tracciamento sessione
 export async function salvaUtente(userId: string, content: string, userName: string, ip?: string, userAgent?: string) {
   try {
+    const supabase = getSupabaseClient();
     await supabase.from('user_memories').insert([
       { user_id: userId, content, user_name: userName }
     ]);
@@ -69,6 +78,7 @@ export async function salvaUtente(userId: string, content: string, userName: str
 // Report sessioni per il Super Admin
 export async function getActiveUsersReport(): Promise<string> {
   try {
+    const supabase = getSupabaseClient();
     const { data: sessions, error } = await supabase
       .from('user_sessions')
       .select('email, ip_address, user_agent, created_at')
