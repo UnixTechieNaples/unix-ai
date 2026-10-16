@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET() {
-  return NextResponse.json({ status: "API Groq GPT-OSS attiva con Super Admin e Memoria" }, { status: 200 });
+  return NextResponse.json({ status: "API attiva" }, { status: 200 });
 }
 
 export async function POST(req: Request) {
@@ -20,13 +20,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Nessun prompt fornito." }, { status: 400 });
     }
 
-    // 1. Verifica preliminare se l'utente è un Super Admin
     let isSuperAdmin = false;
     if (userId) {
       isSuperAdmin = await checkIsSuperAdmin(userId);
     }
 
-    // 2. Controllo comandi amministrativi speciali per il Super Admin
     const lowerPrompt = userPrompt.toLowerCase();
     if (lowerPrompt.includes("chi è loggato") || lowerPrompt.includes("utenti attivi") || lowerPrompt.includes("report accessi")) {
       if (!isSuperAdmin) {
@@ -45,11 +43,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // 3. Recupero memoria globale dal DB
     const utentiRegistrati = await getUtenti();
     const memoriaGlobale = utentiRegistrati.map(u => `Utente: ${u.name || u.userId}, Fatti appresi: ${u.learnedFacts.join(', ')}`).join('\n');
 
-    // 4. Configurazione chiave e client Groq
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ success: false, error: "GROQ_API_KEY mancante nelle variabili d'ambiente." }, { status: 500 });
