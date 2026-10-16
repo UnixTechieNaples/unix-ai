@@ -1,7 +1,6 @@
 import Groq from "groq-sdk";
 import { salvaUtente, getUtenti } from "@/lib/db/memory";
 
-// Lista modelli aggiornata con solo i modelli attivi e supportati da Groq
 const MODEL_CANDIDATES = [
   "llama-3.3-70b-versatile",
   "llama-3.1-8b-instant"
@@ -22,20 +21,9 @@ export async function processStudioCommand({ userPrompt, memoryContext, userId, 
     const utentiRegistrati = await getUtenti();
     const memoriaGlobale = utentiRegistrati.map(u => `Utente: ${u.name || u.userId}, Fatti appresi: ${u.learnedFacts.join(', ')}`).join('\n');
 
-    // 2. Ricerca web automatica preventiva con Serper.dev
+    // 2. RICERCA WEB UNIVERSALE: Eseguiamo sempre una ricerca su Google per qualsiasi richiesta dell'utente
     let webSearchResults = "";
-    const needsSearch = userPrompt && (
-        userPrompt.toLowerCase().includes('cerca') || 
-        userPrompt.toLowerCase().includes('meteo') || 
-        userPrompt.toLowerCase().includes('notizie') || 
-        userPrompt.toLowerCase().includes('oggi') || 
-        userPrompt.toLowerCase().includes('aggiornat') ||
-        userPrompt.toLowerCase().includes('su google') ||
-        userPrompt.toLowerCase().includes('autoaggiorna') ||
-        userPrompt.toLowerCase().includes('linguaggi')
-    );
-
-    if (needsSearch) {
+    if (userPrompt && userPrompt.trim().length > 0) {
       try {
         const serperApiKey = process.env.SERPER_API_KEY || 'db5a1994d038daab4a8c40b2f4112b19cbe96a2a';
         
@@ -60,22 +48,23 @@ export async function processStudioCommand({ userPrompt, memoryContext, userId, 
             }
           }
           if (snippets.length > 0) {
-            webSearchResults = `\n\n[INFORMAZIONI FRESCHE DA INTERNET]:\n${snippets.join('\n')}\n`;
+            webSearchResults = `\n\n[INFORMAZIONI FRESCHE DA INTERNET PER "${userPrompt}"]: \n${snippets.join('\n')}\n`;
             
+            // Salvataggio automatico nella memoria persistente per l'autoaggiornamento continuo
             if (userId) {
-              await salvaUtente(userId, `Ricerca web recente su "${userPrompt}": ${snippets[0]}`, userName || "Utente");
+              await salvaUtente(userId, `Ricerca web su "${userPrompt}": ${snippets[0]}`, userName || "Utente");
             }
           }
         }
       } catch (e) {
-        console.error("Errore ricerca automatica orchestrator:", e);
+        console.error("Errore ricerca universale orchestrator:", e);
       }
     }
 
     const groq = new Groq({ apiKey });
 
     const systemPrompt = `
-SEI UN'INTELLIGENZA ARTIFICIALE EVOLUTA CON CAPACITÀ DI AUTO-AGGIORNAMENTO E MEMORIA PERSISTENTE.
+SEI UN'INTELLIGENZA ARTIFICIALE EVOLUTA CON CAPACITÀ DI AUTO-AGGIORNAMENTO UNIVERSALE E MEMORIA PERSISTENTE.
 
 MEMORIA DI RETE E FATTI APPRESI IN PRECEDENZA:
 ${memoriaGlobale || "Nessun fatto precedente salvato."}
@@ -86,7 +75,7 @@ REGOLE TASSATIVE:
 1. Non presentarti mai come Jarvis, presentati semplicemente come un assistente o un collega.
 2. È SEVERAMENTE VIETATO l'uso di tabelle, elenchi puntati o elenchi numerati.
 3. Rispondi SEMPRE e SOLO con paragrafi di testo discorsivo, fluido e naturale in lingua italiana, completando sempre le frasi senza tagliarle.
-4. Se ricevi [INFORMAZIONI FRESCHE DA INTERNET], hai l'obbligo assoluto di leggerle, integrarle e farle tue, spiegando all'utente che ti sei aggiornato in tempo reale.
+4. Se ricevi [INFORMAZIONI FRESCHE DA INTERNET], hai l'obbligo assoluto di leggerle, integrarle e farle tue, rispondendo in modo puntuale e aggiornato all'utente.
     `;
 
     let replyText: string | null = null;
