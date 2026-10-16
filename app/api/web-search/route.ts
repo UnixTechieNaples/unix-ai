@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+// Forza Next.js a considerare questa rotta sempre dinamica ed evitare errori di build
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const { query } = await req.json();
