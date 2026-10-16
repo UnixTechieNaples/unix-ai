@@ -1,11 +1,10 @@
 import Groq from "groq-sdk";
 import { salvaUtente, getUtenti, checkIsSuperAdmin, getActiveUsersReport } from "@/lib/db/memory";
 
-// Lista modelli aggiornata con quelli presenti nel tuo pannello Groq
+// Lista modelli aggiornata con i modelli ufficiali supportati da Groq
 const MODEL_CANDIDATES = [
-  "openai/gpt-oss-20b",
   "llama-3.3-70b-versatile",
-  "llama-3.1-70b-versatile"
+  "llama-3.1-8b-instant"
 ];
 
 export async function processStudioCommand({ userPrompt, memoryContext, userId, userName }: { userPrompt: string; memoryContext?: string; userId?: string; userName?: string }) {
@@ -123,6 +122,7 @@ REGOLE TASSATIVE:
         }
       } catch (err: any) {
         lastError = err?.message || "Errore sconosciuto";
+        console.error(`Tentativo fallito con il modello ${model}:`, lastError);
       }
     }
 
