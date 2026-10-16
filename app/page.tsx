@@ -152,12 +152,12 @@ export default function StudioDashboard() {
     setIsLoading(true);
 
     try {
-      // Inviamo anche l'userId e userName all'API della chat per il tracciamento Supabase e Super Admin
+      // MODIFICA EFFETTUATA: Inviamo solo prompt, userId, userName, file e memoryContext
+      // Senza passare l'array "messages" che conteneva il ruolo personalizzato "unix"
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: messages.concat({ role: "user", content: userMessage }),
           userId: user?.id,
           userName: user?.email,
           prompt: userMessage,
@@ -168,7 +168,7 @@ export default function StudioDashboard() {
                 data: attached.contentBase64,
               }
             : null,
-          memoryContext: neuralNodes.map(n => `${n.title}: ${n.content}`).join("\n")
+          memoryContext: neuralNodes.map((n) => `${n.title}: ${n.content}`).join("\n"),
         }),
       });
 
@@ -241,12 +241,17 @@ export default function StudioDashboard() {
     <div className="min-h-screen bg-slate-950 text-cyan-400 font-mono flex flex-col p-4 md:p-6 relative overflow-hidden">
       {/* Se l'utente non è loggato, mostra il modale di autenticazione */}
       {!user && (
-        <AuthModal onLoginSuccess={(loggedInUser) => {
-          setUser(loggedInUser);
-          setMessages([
-            { role: "unix", content: `Benvenuto ${loggedInUser.email}. Connessione stabilita con il core. Ruolo: ${loggedInUser.role.toUpperCase()}` }
-          ]);
-        }} />
+        <AuthModal
+          onLoginSuccess={(loggedInUser) => {
+            setUser(loggedInUser);
+            setMessages([
+              {
+                role: "unix",
+                content: `Benvenuto ${loggedInUser.email}. Connessione stabilita con il core. Ruolo: ${loggedInUser.role.toUpperCase()}`,
+              },
+            ]);
+          }}
+        />
       )}
 
       {/* Sfondo Cyberpunk */}
@@ -293,7 +298,7 @@ export default function StudioDashboard() {
               </button>
             )}
           </div>
-          
+
           <CyberCoreScene isWorking={isLoading || isListening || isSpeaking} />
           <NeuralReactor isSpeaking={isSpeaking} isListening={isListening} />
         </div>
