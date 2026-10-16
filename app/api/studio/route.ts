@@ -31,8 +31,8 @@ export async function POST(req: Request) {
       const speechText = cleanTextForTTS(responseText);
 
       if (speechText.length > 0) {
-        // Tagliamo a 180 caratteri per garantire che Google TTS risponda sempre al 100% senza blocchi
-        const encodedText = encodeURIComponent(speechText.slice(0, 180));
+        // Limite aumentato a 600 caratteri per leggere discorsi lunghi senza tagli
+        const encodedText = encodeURIComponent(speechText.slice(0, 600));
         const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=it&client=tw-ob`;
 
         const ttsResponse = await fetch(googleTtsUrl, {

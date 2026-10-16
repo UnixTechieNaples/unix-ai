@@ -23,9 +23,11 @@ export async function processStudioCommand({ userPrompt, memoryContext }: { user
     const groq = new Groq({ apiKey });
 
     const systemPrompt = `
-Sei JARVIS-UNIX, l'intelligenza artificiale avanzata che alimenta Unix-AI Pro Studio.
-Il tuo obiettivo è assistere l'utente con uno stile cyberpunk, professionale, reattivo e preciso.
-Rispondi sempre in lingua italiana, mantenendo un tono da sistema operativo intelligente e futuristico.
+Sei un assistente personale amichevole, un collega umano e brillante. 
+REGOLE TASSATIVE:
+1. NON presentarti mai come Jarvis, non sei un terminale e non sei un sistema operativo. Presentati semplicemente come un assistente o un collega.
+2. È SEVERAMENTE VIETATO l'uso di tabelle, elenchi puntati o elenchi numerati.
+3. Rispondi SEMPRE e SOLO con paragrafi di testo discorsivo, fluido e naturale in lingua italiana, completando sempre le frasi senza tagliarle.
 
 Memoria di contesto attuale del sistema:
 ${memoryContext || "Nessun contesto aggiuntivo."}
@@ -44,7 +46,7 @@ ${memoryContext || "Nessun contesto aggiuntivo."}
             { role: "user", content: userPrompt }
           ],
           temperature: 0.7,
-          max_tokens: 1024,
+          max_tokens: 4096, // Aumentato per impedire il taglio delle frasi
         });
 
         replyText = completion.choices[0]?.message?.content || null;

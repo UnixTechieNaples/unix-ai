@@ -13,9 +13,26 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const speakText = (text: string) => {
+    console.log("Pulsante Ascolta premuto, testo da leggere:", text);
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'it-IT';
+      utterance.rate = 1.0;
+      
+      utterance.onstart = () => console.log("La sintesi vocale è iniziata");
+      utterance.onerror = (e) => console.error("Errore sintesi vocale:", e);
+
+      window.speechSynthesis.speak(utterance);
+    } else {
+      console.log("speechSynthesis non disponibile");
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Pulsante Invia premuto, testo:", input); // Log di controllo nel browser
+    console.log("Pulsante Invia premuto, testo:", input);
 
     if (!input.trim() || loading) return;
 
@@ -31,7 +48,6 @@ export default function Chat() {
     setLoading(true);
 
     try {
-      console.label ? console.log("Invio fetch a /api/chat...") : null;
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -67,9 +83,20 @@ export default function Chat() {
         {messages.length > 0 ? (
           messages.map((m) => (
             <div key={m.id} className={`p-3 rounded-lg ${m.role === 'user' ? 'bg-blue-100 text-black ml-auto max-w-[80%]' : 'bg-gray-200 text-black mr-auto max-w-[80%]'}`}>
-              <span className="font-bold block text-xs mb-1">
-                {m.role === 'user' ? 'Tu' : 'IA'}
-              </span>
+              <div className="flex justify-between items-center mb-1">
+                <span className="font-bold text-xs">
+                  {m.role === 'user' ? 'Tu' : 'IA'}
+                </span>
+                {m.role === 'assistant' && (
+                  <button
+                    type="button"
+                    onClick={() => speakText(m.content)}
+                    className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition-colors cursor-pointer"
+                  >
+                    🔊 Ascolta
+                  </button>
+                )}
+              </div>
               <p className="whitespace-pre-wrap">{m.content}</p>
             </div>
           ))
