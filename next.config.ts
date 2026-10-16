@@ -1,12 +1,15 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Forza Next.js a non fare il pre-rendering statico delle API
+  output: 'standalone',
+  experimental: {
+    // Disabilita la raccolta dati automatica delle rotte dinamiche
+    ppr: false,
+  },
   typescript: {
-    // Ignora gli errori di tipo TypeScript durante il build su Vercel
     ignoreBuildErrors: true,
   },
   eslint: {
-    // Ignora i controlli ESLint durante il build su Vercel
     ignoreDuringBuilds: true,
   },
 };
