@@ -15,24 +15,24 @@ function cleanTextForTTS(text: string): string {
 
 export async function POST(req: Request) {
   try {
-    const { prompt, memoryContext } = await req.json();
+    const { prompt, memoryContext, userId, userName } = await req.json();
 
     if (!prompt) {
       return NextResponse.json({ success: false, error: "Prompt mancante." }, { status: 400 });
     }
 
-    // 1. Esegue il comando tramite l'orchestratore Groq
-    const result = await processStudioCommand({ userPrompt: prompt, memoryContext });
+    // 1. Esegue il comando tramite l'orchestratore aggiornato con ricerca web e memoria
+    const result = await processStudioCommand({ userPrompt: prompt, memoryContext, userId, userName });
     const responseText = result?.reply || "Elaborazione completata dal core.";
 
-    // 2. Generazione Audio TTS stabile
+    // 2. Generazione Audio TTS stabile con limite esteso a 1000 caratteri
     let audioBase64: string | null = null;
     try {
       const speechText = cleanTextForTTS(responseText);
 
       if (speechText.length > 0) {
-        // Limite aumentato a 600 caratteri per leggere discorsi lunghi senza tagli
-        const encodedText = encodeURIComponent(speechText.slice(0, 600));
+        // Limite impostato a 1000 caratteri per frasi più lunghe e stabili
+        const encodedText = encodeURIComponent(speechText.slice(0, 1000));
         const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=it&client=tw-ob`;
 
         const ttsResponse = await fetch(googleTtsUrl, {
