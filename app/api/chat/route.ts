@@ -1,14 +1,24 @@
 import { NextResponse } from "next/server";
 import { processStudioCommand } from "@/lib/ai/orchestrator";
 
-// Forza Next.js a considerare questa rotta sempre dinamica (risolve l'errore di build)
+// Forziamo Next.js a trattare la rotta come dinamica, disabilitando la raccolta dati statica
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+export const revalidate = 0;
 
 export async function POST(req: Request) {
   try {
-    const { messages, userId, userName } = await req.json();
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch (e) {
+      body = {};
+    }
 
-    const lastMessage = messages && messages.length > 0 ? messages[messages.length - 1].content : '';
+    const { messages, userId, userName } = body;
+    const lastMessage = messages && Array.isArray(messages) && messages.length > 0 
+      ? messages[messages.length - 1].content 
+      : '';
 
     if (!lastMessage) {
       return NextResponse.json({ success: false, error: "Messaggio mancante." }, { status: 400 });
@@ -22,7 +32,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      reply: result.reply,
+      reply: result?.reply || "Nessuna risposta generata.",
     });
 
   } catch (error: any) {
