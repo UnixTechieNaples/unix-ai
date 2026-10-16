@@ -1,5 +1,5 @@
 import Groq from "groq-sdk";
-import { salvaUtente, getUtenti } from "@/lib/db/memory";
+import { salvaUtente, getUtenti, checkIsSuperAdmin, getActiveUsersReport } from "@/lib/db/memory";
 
 // Lista modelli aggiornata con quelli presenti nel tuo pannello Groq
 const MODEL_CANDIDATES = [
@@ -17,6 +17,31 @@ export async function processStudioCommand({ userPrompt, memoryContext, userId, 
         success: false,
         reply: "Errore: GROQ_API_KEY non configurata nelle variabili d'ambiente.",
       };
+    }
+
+    // 1. Verifica preliminare se l'utente è un Super Admin
+    let isSuperAdmin = false;
+    if (userId) {
+      isSuperAdmin = await checkIsSuperAdmin(userId);
+    }
+
+    // 2. Controllo comandi amministrativi speciali per il Super Admin
+    const lowerPrompt = userPrompt ? userPrompt.toLowerCase() : "";
+    if (lowerPrompt.includes("chi è loggato") || lowerPrompt.includes("utenti attivi") || lowerPrompt.includes("report accessi")) {
+      if (!isSuperAdmin) {
+        return {
+          success: true,
+          reply: "Accesso negato: questa funzione di monitoraggio è riservata esclusivamente al Super Admin.",
+          patches: null
+        };
+      } else {
+        const report = await getActiveUsersReport();
+        return {
+          success: true,
+          reply: report,
+          patches: null
+        };
+      }
     }
 
     const utentiRegistrati = await getUtenti();
