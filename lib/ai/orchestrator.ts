@@ -1,11 +1,10 @@
 import Groq from "groq-sdk";
 import { salvaUtente, getUtenti } from "@/lib/db/memory";
 
-// Lista modelli aggiornata con quelli presenti nel tuo pannello Groq
+// Usiamo SOLO il modello principale attualmente attivo e supportato da Groq
 const MODEL_CANDIDATES = [
   "llama-3.3-70b-versatile",
-  "llama-3.1-8b-instant",
-  "llama-3.1-70b-versatile"
+  "llama-3.1-8b-instant"
 ];
 
 export async function processStudioCommand({ userPrompt, memoryContext, userId, userName }: { userPrompt: string; memoryContext?: string; userId?: string; userName?: string }) {
