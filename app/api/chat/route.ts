@@ -6,12 +6,10 @@ import { salvaUtente, getUtenti } from '@/lib/db/memory';
 export async function POST(req: Request) {
   const { messages, userId, userName, newFact } = await req.json();
 
-  // Se viene passato un ID utente, lo salviamo nel database per non dimenticarlo
   if (userId) {
     await salvaUtente(userId, newFact, userName);
   }
 
-  // Recuperiamo la lista degli utenti salvati per darla in pasto alla memoria dell'IA
   const utentiRegistrati = await getUtenti();
   const utentiContext = utentiRegistrati.map(u => `ID: ${u.userId}, Nome: ${u.name}, Fatti appresi: ${u.learnedFacts.join(', ')}`).join('\n');
 
@@ -37,7 +35,6 @@ export async function POST(req: Request) {
 
     messages,
 
-    // Definiamo gli strumenti (tools) che l'IA può chiamare in autonomia
     tools: {
       webSearch: tool({
         description: "Cerca informazioni aggiornate su internet tramite Google quando l'utente richiede notizie recenti, di autoaggiornarsi o dati in tempo reale.",
@@ -46,17 +43,37 @@ export async function POST(req: Request) {
         }),
         execute: async ({ query }) => {
           try {
-            const host = req.headers.get('host') || 'localhost:3000';
-            const protocol = host.includes('localhost') ? 'http' : 'https';
+            const serperApiKey = process.env.SERPER_API_KEY || 'db5a1994d038daab4a8c40b2f4112b19cbe96a2a';
             
-            const response = await fetch(`${protocol}://${host}/api/web-search`, {
+            const response = await fetch('https://google.serper.dev/search', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ query }),
+              headers: {
+                'X-API-KEY': serperApiKey,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ q: query })
             });
 
+            if (!response.ok) {
+              throw new Error('Errore durante il recupero dei risultati di ricerca.');
+            }
+
             const data = await response.json();
-            return data;
+            const snippets: string[] = [];
+            if (data.organic && Array.isArray(data.organic)) {
+              for (const item of data.organic) {
+                if (item.snippet) {
+                  snippets.push(`${item.title}: ${item.snippet}`);
+                }
+                if (snippets.length >= 5) break;
+              }
+            }
+
+            return {
+              success: true,
+              results: snippets.length > 0 ? snippets : ["Nessun risultato trovato sul web."],
+              source: 'Google Serper Search'
+            };
           } catch (error: any) {
             return { success: false, error: error.message };
           }
