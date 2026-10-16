@@ -1,15 +1,14 @@
 import Groq from "groq-sdk";
+import { salvaUtente, getUtenti } from "@/lib/db/memory";
 
-// Lista modelli in ordine di priorità da testare
 const MODEL_CANDIDATES = [
-  "llama-3.1-8b-instant",
-  "llama3-8b-8192",
   "llama-3.3-70b-versatile",
+  "llama-3.1-8b-instant",
   "llama3-70b-8192",
-  "openai/gpt-oss-20b"
+  "llama3-8b-8192"
 ];
 
-export async function processStudioCommand({ userPrompt, memoryContext }: { userPrompt: string; memoryContext?: string }) {
+export async function processStudioCommand({ userPrompt, memoryContext, userId, userName }: { userPrompt: string; memoryContext?: string; userId?: string; userName?: string }) {
   try {
     const apiKey = process.env.GROQ_API_KEY;
 
@@ -20,16 +19,23 @@ export async function processStudioCommand({ userPrompt, memoryContext }: { user
       };
     }
 
-    // Ricerca web automatica preventiva con Serper.dev
+    // 1. Recuperiamo la memoria esistente per dare continuità
+    const utentiRegistrati = await getUtenti();
+    const memoriaGlobale = utentiRegistrati.map(u => `Utente: ${u.name || u.userId}, Fatti appresi: ${u.learnedFacts.join(', ')}`).join('\n');
+
+    // 2. Ricerca web automatica preventiva con Serper.dev
     let webSearchResults = "";
-    if (userPrompt && (
+    const needsSearch = userPrompt && (
         userPrompt.toLowerCase().includes('cerca') || 
         userPrompt.toLowerCase().includes('meteo') || 
         userPrompt.toLowerCase().includes('notizie') || 
         userPrompt.toLowerCase().includes('oggi') || 
         userPrompt.toLowerCase().includes('aggiornat') ||
-        userPrompt.toLowerCase().includes('su google')
-    )) {
+        userPrompt.toLowerCase().includes('su google') ||
+        userPrompt.toLowerCase().includes('autoaggiorna')
+    );
+
+    if (needsSearch) {
       try {
         const serperApiKey = process.env.SERPER_API_KEY || 'db5a1994d038daab4a8c40b2f4112b19cbe96a2a';
         
@@ -54,7 +60,12 @@ export async function processStudioCommand({ userPrompt, memoryContext }: { user
             }
           }
           if (snippets.length > 0) {
-            webSearchResults = `\n\nDATI AGGIORNATI DA INTERNET IN TEMPO REALE:\n${snippets.join('\n')}\n`;
+            webSearchResults = `\n\n[INFORMAZIONI FRESCHE DA INTERNET]:\n${snippets.join('\n')}\n`;
+            
+            // AUTO-AGGIORNAMENTO: Se è attiva una sessione utente, salviamo automaticamente la scoperta nella memoria persistente!
+            if (userId) {
+              await salvaUtente(userId, `Ricerca web recente su "${userPrompt}": ${snippets[0]}`, userName || "Utente");
+            }
           }
         }
       } catch (e) {
@@ -65,22 +76,23 @@ export async function processStudioCommand({ userPrompt, memoryContext }: { user
     const groq = new Groq({ apiKey });
 
     const systemPrompt = `
-Sei un assistente personale amichevole, un collega umano e brillante. 
+SEI UN'INTELLIGENZA ARTIFICIALE EVOLUTA CON CAPACITÀ DI AUTO-AGGIORNAMENTO E MEMORIA PERSISTENTE.
+
+MEMORIA DI RETE E FATTI APPRESI IN PRECEDENZA:
+${memoriaGlobale || "Nessun fatto precedente salvato."}
+${memoryContext || ""}
+${webSearchResults}
+
 REGOLE TASSATIVE:
-1. NON presentarti mai come Jarvis, non sei un terminale e non sei un sistema operativo. Presentati semplicemente come un assistente o un collega.
+1. Non presentarti mai come Jarvis, presentati semplicemente come un assistente o un collega.
 2. È SEVERAMENTE VIETATO l'uso di tabelle, elenchi puntati o elenchi numerati.
 3. Rispondi SEMPRE e SOLO con paragrafi di testo discorsivo, fluido e naturale in lingua italiana, completando sempre le frasi senza tagliarle.
-4. Se ricevi informazioni aggiornate da internet, hai l'obbligo assoluto di leggerle e integrarle nella risposta.
-
-Memoria di contesto attuale del sistema:
-${memoryContext || "Nessun contesto aggiuntivo."}
-${webSearchResults}
+4. Se ricevi [INFORMAZIONI FRESCHE DA INTERNET], hai l'obbligo assoluto di leggerle, integrarle e farle tue, spiegando all'utente che ti sei aggiornato in tempo reale.
     `;
 
     let replyText: string | null = null;
     let lastError = "";
 
-    // Prova i modelli candidate in cascata finché uno funziona
     for (const model of MODEL_CANDIDATES) {
       try {
         const completion = await groq.chat.completions.create({
@@ -95,12 +107,10 @@ ${webSearchResults}
 
         replyText = completion.choices[0]?.message?.content || null;
         if (replyText) {
-          console.log(`[GROQ] Risposta generata con successo utilizzando il modello: ${model}`);
           break;
         }
       } catch (err: any) {
         lastError = err?.message || "Errore sconosciuto";
-        console.warn(`[GROQ] Modello ${model} non disponibile, provo il successivo... (${lastError})`);
       }
     }
 
