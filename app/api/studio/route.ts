@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { processStudioCommand } from "@/lib/ai/orchestrator";
+import { salvaUtente } from "@/lib/db/memory";
 
-// Pulizia sicura che rimuove i simboli fastidiosi senza rompere l'URL audio di Google
 function cleanTextForTTS(text: string): string {
   if (!text) return "";
   return text
@@ -21,18 +21,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Prompt mancante." }, { status: 400 });
     }
 
-    // 1. Esegue il comando tramite l'orchestratore aggiornato con ricerca web e memoria
+    // 1. Esegue il comando tramite l'orchestratore
     const result = await processStudioCommand({ userPrompt: prompt, memoryContext, userId, userName });
     const responseText = result?.reply || "Elaborazione completata dal core.";
 
-    // 2. Generazione Audio TTS stabile con limite esteso a 1000 caratteri
+    // MEMORIA PERSISTENTE DI RETE: Salviamo immediatamente l'interazione nel database se c'è un utente
+    if (userId) {
+      try {
+        await salvaUtente(userId, `Domanda: "${prompt}" -> Risposta: "${responseText.slice(0, 150)}..."`, userName || "Utente");
+      } catch (dbErr) {
+        console.error("Errore salvataggio memoria automatica:", dbErr);
+      }
+    }
+
+    // 2. Generazione Audio TTS stabile e sicura (ridotta a 500 caratteri per evitare blocchi dell'URL)
     let audioBase64: string | null = null;
     try {
       const speechText = cleanTextForTTS(responseText);
 
       if (speechText.length > 0) {
-        // Limite impostato a 1000 caratteri per frasi più lunghe e stabili
-        const encodedText = encodeURIComponent(speechText.slice(0, 1000));
+        const encodedText = encodeURIComponent(speechText.slice(0, 500));
         const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=it&client=tw-ob`;
 
         const ttsResponse = await fetch(googleTtsUrl, {
