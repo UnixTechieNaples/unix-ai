@@ -5,7 +5,37 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PU
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Funzione per verificare se un utente è Super Admin
+// Funzione richiesta dall'orchestratore per leggere i dati e le memorie degli utenti
+export async function getUtenti() {
+  try {
+    const { data, error } = await supabase
+      .from('user_memories')
+      .select('user_id, user_name, content');
+    
+    if (error || !data) return [];
+    
+    const map = new Map();
+    data.forEach((item: any) => {
+      const uid = item.user_id || 'sconosciuto';
+      if (!map.has(uid)) {
+        map.set(uid, { userId: uid, name: item.user_name || 'Utente', learnedFacts: [] });
+      }
+      if (item.content) {
+        map.set(uid, {
+          ...map.get(uid),
+          learnedFacts: [...map.get(uid).learnedFacts, item.content]
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  } catch (err) {
+    console.error("Errore recupero utenti:", err);
+    return [];
+  }
+}
+
+// Verifica se l'utente è Super Admin
 export async function checkIsSuperAdmin(userId: string): Promise<boolean> {
   if (!userId) return false;
   const { data, error } = await supabase
@@ -18,15 +48,13 @@ export async function checkIsSuperAdmin(userId: string): Promise<boolean> {
   return data.role === 'super_admin';
 }
 
-// Funzione per salvare l'interazione e tracciare l'attività
+// Salvataggio interazione e tracciamento sessione
 export async function salvaUtente(userId: string, content: string, userName: string, ip?: string, userAgent?: string) {
   try {
-    // Salva la memoria della conversazione
     await supabase.from('user_memories').insert([
       { user_id: userId, content, user_name: userName }
     ]);
 
-    // Se vengono passati i dati di sessione, tracciamo anche l'accesso/dispositivo
     if (ip || userAgent) {
       const { data: profile } = await supabase.from('profiles').select('email').eq('id', userId).single();
       await supabase.from('user_sessions').insert([
@@ -38,7 +66,7 @@ export async function salvaUtente(userId: string, content: string, userName: str
   }
 }
 
-// Funzione dedicata al Super Admin per ottenere la lista degli utenti attivi e loggati
+// Report sessioni per il Super Admin
 export async function getActiveUsersReport(): Promise<string> {
   try {
     const { data: sessions, error } = await supabase
@@ -51,9 +79,9 @@ export async function getActiveUsersReport(): Promise<string> {
       return "Nessuna sessione attiva registrata al momento nel database.";
     }
 
-    let report = "📊 **Report Attività e Utenti Loggati:**\n\n";
+    let report = "Report Attività e Utenti Loggati:\n\n";
     sessions.forEach((s, idx) => {
-      report += `${idx + 1}. **Email:** ${s.email}\n   - **IP:** ${s.ip_address || 'Non rilevato'}\n   - **Dispositivo:** ${s.user_agent || 'Sconosciuto'}\n   - **Ultima attività:** ${new Date(s.created_at).toLocaleString()}\n\n`;
+      report += `${idx + 1}. Email: ${s.email}\n   - IP: ${s.ip_address || 'Non rilevato'}\n   - Dispositivo: ${s.user_agent || 'Sconosciuto'}\n   - Ultima attività: ${new Date(s.created_at).toLocaleString()}\n\n`;
     });
 
     return report;
