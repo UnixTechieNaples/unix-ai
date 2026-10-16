@@ -7,33 +7,39 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Query mancante' }, { status: 400 });
     }
 
-    // Usiamo l'endpoint di DuckDuckGo HTML/Lite o API pubbliche libere per cercare informazioni fresche online
-    const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-    const response = await fetch(searchUrl, {
+    // Utilizziamo Serper.dev per interrogare Google in tempo reale
+    const serperApiKey = process.env.SERPER_API_KEY || 'db5a1994d038daab4a8c40b2f4112b19cbe96a2a';
+    
+    const response = await fetch('https://google.serper.dev/search', {
+      method: 'POST',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
+        'X-API-KEY': serperApiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ q: query })
     });
 
     if (!response.ok) {
-      throw new Error('Errore durante il recupero dei risultati di ricerca.');
+      throw new Error('Errore durante il recupero dei risultati di ricerca da Serper.');
     }
 
-    const html = await response.text();
+    const data = await response.json();
     
-    // Semplice parsing dei risultati testuali dall'HTML di DuckDuckGo per estrarre snippet utili
+    // Estraiamo i risultati principali (organic results) o gli snippet utili
     const snippets: string[] = [];
-    const matches = html.matchAll(/<a class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g);
-    for (const match of matches) {
-      const cleanText = match[1].replace(/<[^>]*>/g, '').trim();
-      snippets.push(cleanText);
-      if (snippets.length >= 5) break; // Prendiamo i primi 5 risultati
+    if (data.organic && Array.isArray(data.organic)) {
+      for (const item of data.organic) {
+        if (item.snippet) {
+          snippets.push(`${item.title}: ${item.snippet}`);
+        }
+        if (snippets.length >= 5) break; // Prendiamo i primi 5 risultati più rilevanti
+      }
     }
 
     return NextResponse.json({
       success: true,
-      results: snippets.length > 0 ? snippets : ["Nessun risultato dettagliato trovato, ma la connessione è attiva."],
-      source: 'DuckDuckGo Online Search'
+      results: snippets.length > 0 ? snippets : ["Nessun risultato trovato sul web per questa ricerca."],
+      source: 'Google Serper Search'
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
