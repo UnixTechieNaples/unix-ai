@@ -4,6 +4,7 @@ import { salvaUtente, getUtenti, checkIsSuperAdmin, getActiveUsersReport } from 
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const fetchCache = 'force-no-store';
 
 export async function POST(req: Request) {
   try {
