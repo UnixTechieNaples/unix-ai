@@ -1,7 +1,6 @@
 import Groq from "groq-sdk";
 import { salvaUtente, getUtenti, checkIsSuperAdmin, getActiveUsersReport } from "@/lib/db/memory";
 
-// Lista modelli aggiornata con i modelli ufficiali supportati da Groq
 const MODEL_CANDIDATES = [
   "llama-3.3-70b-versatile",
   "llama-3.1-8b-instant"
@@ -18,13 +17,11 @@ export async function processStudioCommand({ userPrompt, memoryContext, userId, 
       };
     }
 
-    // 1. Verifica preliminare se l'utente è un Super Admin
     let isSuperAdmin = false;
     if (userId) {
       isSuperAdmin = await checkIsSuperAdmin(userId);
     }
 
-    // 2. Controllo comandi amministrativi speciali per il Super Admin
     const lowerPrompt = userPrompt ? userPrompt.toLowerCase() : "";
     if (lowerPrompt.includes("chi è loggato") || lowerPrompt.includes("utenti attivi") || lowerPrompt.includes("report accessi")) {
       if (!isSuperAdmin) {
@@ -122,7 +119,6 @@ REGOLE TASSATIVE:
         }
       } catch (err: any) {
         lastError = err?.message || "Errore sconosciuto";
-        console.error(`Tentativo fallito con il modello ${model}:`, lastError);
       }
     }
 
@@ -144,7 +140,7 @@ REGOLE TASSATIVE:
     console.error("ERRORE CRITICO ORCHESTRATOR:", error);
     return {
       success: false,
-      reply: `Errore di connessione: ${error?.message || "Errore sconosciuto"}`,
+      reply: `ERRORE INTERNO DETTAGLIATO: ${error?.message || JSON.stringify(error)}`,
       error: error?.message
     };
   }
