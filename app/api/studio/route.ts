@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { processStudioCommand } from "@/lib/ai/orchestrator";
 import { salvaUtente } from "@/lib/db/memory";
 
+// Forza Next.js a considerare questa rotta sempre dinamica durante il build
+export const dynamic = 'force-dynamic';
+
 function cleanTextForTTS(text: string): string {
   if (!text) return "";
   return text
@@ -21,20 +24,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Prompt mancante." }, { status: 400 });
     }
 
-    // 1. Esegue il comando tramite l'orchestratore
     const result = await processStudioCommand({ userPrompt: prompt, memoryContext, userId, userName });
     const responseText = result?.reply || "Elaborazione completata dal core.";
 
-    // MEMORIA PERSISTENTE DI RETE: Salviamo immediatamente l'interazione nel database se c'è un utente
+    const ip = req.headers.get("x-forwarded-for") || "IP sconosciuto";
+    const userAgent = req.headers.get("user-agent") || "Dispositivo sconosciuto";
+
     if (userId) {
       try {
-        await salvaUtente(userId, `Domanda: "${prompt}" -> Risposta: "${responseText.slice(0, 150)}..."`, userName || "Utente");
+        await salvaUtente(userId, `Domanda: "${prompt}" -> Risposta: "${responseText.slice(0, 150)}..."`, userName || "Utente", ip, userAgent);
       } catch (dbErr) {
         console.error("Errore salvataggio memoria automatica:", dbErr);
       }
     }
 
-    // 2. Generazione Audio TTS stabile e sicura (ridotta a 500 caratteri per evitare blocchi dell'URL)
     let audioBase64: string | null = null;
     try {
       const speechText = cleanTextForTTS(responseText);
