@@ -1,11 +1,10 @@
 import Groq from "groq-sdk";
 import { salvaUtente, getUtenti } from "@/lib/db/memory";
 
+// Lista modelli aggiornata con solo i modelli attivi e supportati da Groq
 const MODEL_CANDIDATES = [
   "llama-3.3-70b-versatile",
-  "llama-3.1-8b-instant",
-  "llama3-70b-8192",
-  "llama3-8b-8192"
+  "llama-3.1-8b-instant"
 ];
 
 export async function processStudioCommand({ userPrompt, memoryContext, userId, userName }: { userPrompt: string; memoryContext?: string; userId?: string; userName?: string }) {
@@ -32,7 +31,8 @@ export async function processStudioCommand({ userPrompt, memoryContext, userId, 
         userPrompt.toLowerCase().includes('oggi') || 
         userPrompt.toLowerCase().includes('aggiornat') ||
         userPrompt.toLowerCase().includes('su google') ||
-        userPrompt.toLowerCase().includes('autoaggiorna')
+        userPrompt.toLowerCase().includes('autoaggiorna') ||
+        userPrompt.toLowerCase().includes('linguaggi')
     );
 
     if (needsSearch) {
@@ -62,7 +62,6 @@ export async function processStudioCommand({ userPrompt, memoryContext, userId, 
           if (snippets.length > 0) {
             webSearchResults = `\n\n[INFORMAZIONI FRESCHE DA INTERNET]:\n${snippets.join('\n')}\n`;
             
-            // AUTO-AGGIORNAMENTO: Se è attiva una sessione utente, salviamo automaticamente la scoperta nella memoria persistente!
             if (userId) {
               await salvaUtente(userId, `Ricerca web recente su "${userPrompt}": ${snippets[0]}`, userName || "Utente");
             }
