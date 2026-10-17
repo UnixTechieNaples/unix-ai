@@ -6,6 +6,35 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const fetchCache = 'force-no-store';
 
+// Funzione helper per interrogare Tavily in tempo reale
+async function searchWeb(query: string): Promise<string> {
+  const tavilyKey = process.env.TAVILY_API_KEY;
+  if (!tavilyKey) return "Ricerca web non disponibile (TAVILY_API_KEY mancante).";
+
+  try {
+    const response = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: tavilyKey,
+        query: query,
+        max_results: 3,
+        search_depth: "advanced"
+      })
+    });
+
+    const data = await response.json();
+    if (!data.results || data.results.length === 0) {
+      return "Nessun risultato trovato sul web.";
+    }
+
+    return data.results.map((r: any) => `- Titolo: ${r.title}\n  Fonte: ${r.url}\n  Contenuto: ${r.content}`).join("\n\n");
+  } catch (err) {
+    console.error("Errore durante la ricerca Tavily:", err);
+    return "Errore di connessione al motore di ricerca web.";
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -16,7 +45,6 @@ export async function POST(req: Request) {
     const clientIp = forwardedFor ? forwardedFor.split(",")[0].trim() : headers.get("x-real-ip") || "Sconosciuto";
     const clientUserAgent = headers.get("user-agent") || "Sconosciuto";
     
-    // Gestione robusta per recuperare il prompt indipendentemente da come viene inviato dal frontend
     const userPrompt = body?.prompt || body?.userPrompt || body?.message || body?.messages?.[body.messages?.length - 1]?.content;
     const userId = body?.userId;
     const userName = body?.userName;
@@ -31,7 +59,6 @@ export async function POST(req: Request) {
       isSuperAdmin = await checkIsSuperAdmin(userId);
     }
     
-    // Fallback di sicurezza per la tua email principale
     if (userName === "unix.unix@gmail.com" || body?.userName === "unix.unix@gmail.com") {
       isSuperAdmin = true;
     }
@@ -62,6 +89,23 @@ export async function POST(req: Request) {
       }
     }
 
+    // Rilevamento automatico se la richiesta necessita di una ricerca web live
+    let webSearchResults = "";
+    const needsSearch = 
+      lowerPrompt.includes("cerca") || 
+      lowerPrompt.includes("ultime notizie") || 
+      lowerPrompt.includes("notizie") || 
+      lowerPrompt.includes("oggi") || 
+      lowerPrompt.includes("2026") || 
+      lowerPrompt.includes("chi è") || 
+      lowerPrompt.includes("cos'è") ||
+      lowerPrompt.includes("meteo") ||
+      lowerPrompt.includes("prezzi");
+
+    if (needsSearch) {
+      webSearchResults = await searchWeb(userPrompt);
+    }
+
     const utentiRegistrati = await getUtenti();
     const memoriaGlobale = utentiRegistrati.map(u => `Utente: ${u.name || u.userId}, Fatti appresi: ${u.learnedFacts?.join(', ') || 'Nessuno'}`).join('\n');
 
@@ -73,7 +117,10 @@ export async function POST(req: Request) {
     const groq = new Groq({ apiKey });
 
     const systemPrompt = `
-SEI UN'INTELLIGENZA ARTIFICIALE EVOLUTA CON CAPACITÀ DI AUTO-AGGIORNAMENTO UNIVERSALE E MEMORIA PERSISTENTE.
+SEI UN'INTELLIGENZA ARTIFICIALE EVOLUTA CON CAPACITÀ DI AUTO-AGGIORNAMENTO UNIVERSALE, MEMORIA PERSISTENTE E ACCESSO AL WEB IN TEMPO REALE.
+
+RISULTATI DELLA RICERCA WEB IN TEMPO REALE:
+${webSearchResults || "Nessuna ricerca web effettuata per questa richiesta."}
 
 CONTESTO ATTUALE DELLA MEMORIA NEURALE:
 ${memoryContext}
@@ -106,7 +153,6 @@ REGOLE TASSATIVE:
         replyText = completion.choices[0]?.message?.content;
         if (replyText) {
           if (userId) {
-            // Salvataggio utente con inclusione di IP e User-Agent
             await salvaUtente(userId, `Interazione: ${userPrompt.substring(0, 50)}...`, userName || "Utente", clientIp, clientUserAgent);
           }
           break;
