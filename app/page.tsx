@@ -72,25 +72,72 @@ export default function StudioDashboard() {
     scrollToBottom();
   }, [messages, isLoading]);
 
-  const handleUpdateNode = (id: string, newContent: string) => {
+  // Sincronizzazione aggiornamento neurone con Supabase
+  const handleUpdateNode = async (id: string, newContent: string) => {
+    const targetNode = neuralNodes.find((n) => n.id === id);
+    if (!targetNode) return;
+
+    const updatedNode = {
+      ...targetNode,
+      content: newContent,
+      timestamp: new Date().toLocaleTimeString("it-IT"),
+    };
+
     setNeuralNodes((prev) =>
-      prev.map((node) => (node.id === id ? { ...node, content: newContent, timestamp: new Date().toLocaleTimeString() } : node))
+      prev.map((node) => (node.id === id ? updatedNode : node))
     );
+
+    try {
+      await fetch("/api/studio", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user?.id || "admin-super-unix",
+          node: updatedNode,
+        }),
+      });
+    } catch (err) {
+      console.error("Errore sincronizzazione aggiornamento neurone:", err);
+    }
   };
 
-  const handleDeleteNode = (id: string) => {
+  // Sincronizzazione eliminazione neurone con Supabase
+  const handleDeleteNode = async (id: string) => {
     setNeuralNodes((prev) => prev.filter((node) => node.id !== id));
+
+    try {
+      await fetch(`/api/studio?userId=${user?.id || "admin-super-unix"}&nodeId=${id}`, {
+        method: "DELETE",
+      });
+    } catch (err) {
+      console.error("Errore sincronizzazione eliminazione neurone:", err);
+    }
   };
 
-  const handleAddNode = (title: string, content: string) => {
+  // Sincronizzazione creazione nuovo neurone con Supabase
+  const handleAddNode = async (title: string, content: string) => {
     const newNode: NeuralMemoryNode = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 4),
       title,
       content,
       type: "memory",
-      timestamp: new Date().toLocaleTimeString(),
+      timestamp: new Date().toLocaleTimeString("it-IT"),
     };
+
     setNeuralNodes((prev) => [...prev, newNode]);
+
+    try {
+      await fetch("/api/studio", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user?.id || "admin-super-unix",
+          node: newNode,
+        }),
+      });
+    } catch (err) {
+      console.error("Errore sincronizzazione creazione neurone:", err);
+    }
   };
 
   const stopSpeaking = () => {
