@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
-import { salvaUtente, getUtenti, checkIsSuperAdmin, getActiveUsersReport } from "@/lib/db/memory";
+import { salvaUtente, getUtenti, checkIsSuperAdmin, getActiveUsersReport, salvaNeuroneUtente, getNeuroniUtente } from "@/lib/db/memory";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -35,6 +35,19 @@ async function searchWeb(query: string): Promise<string> {
   }
 }
 
+export async function GET(req: Request) {
+  try {
+    const url = new URL(req.url);
+    const userId = url.searchParams.get("userId") || "admin-super-unix";
+    
+    // Recupera i neuroni salvati dal database per l'utente
+    const neuroniDB = await getNeuroniUtente(userId);
+    return NextResponse.json({ success: true, nodes: neuroniDB });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err?.message }, { status: 500 });
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -45,8 +58,8 @@ export async function POST(req: Request) {
     const clientUserAgent = headers.get("user-agent") || "Sconosciuto";
     
     const userPrompt = body?.prompt || body?.userPrompt || body?.message || body?.messages?.[body.messages?.length - 1]?.content;
-    const userId = body?.userId;
-    const userName = body?.userName;
+    const userId = body?.userId || "admin-super-unix";
+    const userName = body?.userName || "unix.unix@gmail.com";
     const memoryContext = body?.memoryContext || "";
 
     if (!userPrompt) {
@@ -164,7 +177,7 @@ Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove inf
         rawContent = completion.choices[0]?.message?.content;
         if (rawContent) {
           if (userId) {
-            await salvaUtente(userId, `Interazione: ${userPrompt.substring(0, 50)}...`, userName || "Utente", clientIp, clientUserAgent);
+            await salvaUtente(userId, `Interazione: ${userPrompt.substring(0, 50)}...`, userName, clientIp, clientUserAgent);
           }
           break;
         }
@@ -181,18 +194,30 @@ Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove inf
       }, { status: 500 });
     }
 
-    // Tentativo di parsing del JSON restituito dall'IA
     let parsedResponse;
     try {
-      // Pulizia di eventuali backtick di markdown nel caso l'IA li includa
       const cleanedJsonString = rawContent.replace(/```json/g, "").replace(/```/g, "").trim();
       parsedResponse = JSON.parse(cleanedJsonString);
     } catch (parseErr) {
-      // Fallback se l'IA risponde con solo testo semplice anziché JSON
       parsedResponse = {
         reply: rawContent,
         newNodes: []
       };
+    }
+
+    // Salvataggio automatico dei nuovi neuroni generati nel database Supabase
+    if (parsedResponse.newNodes && Array.isArray(parsedResponse.newNodes)) {
+      for (const node of parsedResponse.newNodes) {
+        if (node.title && node.content) {
+          await salvaNeuroneUtente(userId, {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 4),
+            title: node.title,
+            content: node.content,
+            type: "memory",
+            timestamp: new Date().toLocaleTimeString("it-IT")
+          });
+        }
+      }
     }
 
     return NextResponse.json({

@@ -7,6 +7,60 @@ function getSupabaseClient() {
   return createClient(supabaseUrl, supabaseKey);
 }
 
+export interface NeuralNodeDB {
+  id: string;
+  title: string;
+  content: string;
+  type: string;
+  timestamp: string;
+}
+
+// Funzione per recuperare i neuroni persistenti salvati per l'utente
+export async function getNeuroniUtente(userId: string): Promise<NeuralNodeDB[]> {
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('neural_nodes')
+      .select('id, title, content, type, timestamp')
+      .eq('user_id', userId)
+      .order('timestamp', { ascending: true });
+
+    if (error || !data || data.length === 0) {
+      return [];
+    }
+
+    return data.map((item: any) => ({
+      id: item.id,
+      title: item.title,
+      content: item.content,
+      type: item.type || 'memory',
+      timestamp: item.timestamp ? new Date(item.timestamp).toLocaleTimeString('it-IT') : new Date().toLocaleTimeString('it-IT')
+    }));
+  } catch (err) {
+    console.error("Errore recupero neuroni utente:", err);
+    return [];
+  }
+}
+
+// Funzione per salvare o aggiornare un neurone nel database
+export async function salvaNeuroneUtente(userId: string, node: NeuralNodeDB) {
+  try {
+    const supabase = getSupabaseClient();
+    await supabase.from('neural_nodes').upsert([
+      {
+        id: node.id,
+        user_id: userId,
+        title: node.title,
+        content: node.content,
+        type: node.type,
+        timestamp: new Date().toISOString()
+      }
+    ], { onConflict: 'id' });
+  } catch (err) {
+    console.error("Errore salvataggio neurone su Supabase:", err);
+  }
+}
+
 // Funzione richiesta dall'orchestratore per leggere i dati e le memorie degli utenti
 export async function getUtenti() {
   try {
