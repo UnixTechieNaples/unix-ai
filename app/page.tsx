@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import NeuralReactor from "@/components/NeuralReactor";
-import CyberCoreScene from "@/components/CyberCore3D";
 import NeuralInspectorPanel, { NeuralMemoryNode } from "@/components/NeuralInspectorPanel";
 
 export default function StudioDashboard() {
@@ -24,7 +22,7 @@ export default function StudioDashboard() {
 
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Memoria Neuroni con i nuovi testi predefiniti definiti
+  // Memoria Neuroni con i testi predefiniti
   const [neuralNodes, setNeuralNodes] = useState<NeuralMemoryNode[]>([
     {
       id: "1",
@@ -73,7 +71,7 @@ export default function StudioDashboard() {
 
   const handleAddNode = (title: string, content: string) => {
     const newNode: NeuralMemoryNode = {
-      id: Date.now().toString(),
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 4),
       title,
       content,
       type: "memory",
@@ -178,6 +176,16 @@ export default function StudioDashboard() {
 
       if (replyContent) {
         setMessages((prev) => [...prev, { role: "unix", content: replyContent }]);
+        
+        // Auto-aggiunta dei nuovi neuroni generati dall'IA
+        if (data.newNodes && Array.isArray(data.newNodes) && data.newNodes.length > 0) {
+          data.newNodes.forEach((node: { title: string; content: string }) => {
+            if (node.title && node.content) {
+              handleAddNode(node.title, node.content);
+            }
+          });
+        }
+
         if (data.audio) {
           playAudioStream(data.audio);
         }
@@ -243,7 +251,7 @@ export default function StudioDashboard() {
       {/* Sfondo Cyberpunk */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-30 pointer-events-none" />
 
-      {/* Header HUD Discreto e Trasparente */}
+      {/* Header HUD */}
       <header className="flex flex-col md:flex-row justify-between items-center border-b border-cyan-500/35 pb-4 z-10 backdrop-blur-md gap-2">
         <div>
           <h1 className="text-xl md:text-2xl font-bold tracking-wider text-cyan-300 drop-shadow-[0_0_10px_rgba(0,240,255,0.5)]">
@@ -256,139 +264,128 @@ export default function StudioDashboard() {
         <div className="flex gap-3 text-xs items-center">
           <div className="border border-cyan-500/30 px-3 py-1 rounded bg-slate-900/50 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            CORE: <span className="text-emerald-400 font-bold">ONLINE</span>
+            CORE: <span className="text-emerald-400 font-bold">ONLINE (MEMORIA DINAMICA ATTIVA)</span>
           </div>
+          {isSpeaking && (
+            <button
+              type="button"
+              onClick={stopSpeaking}
+              className="text-[9px] bg-rose-500/20 border border-rose-500 text-rose-300 px-3 py-1 rounded hover:bg-rose-500/40 transition animate-pulse font-bold"
+            >
+              ZITTISCI AUDIO
+            </button>
+          )}
         </div>
       </header>
 
-      {/* Main Layout Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 my-4 flex-1 z-10">
-        <div className="lg:col-span-1 border border-cyan-500/20 bg-slate-900/40 rounded-xl p-4 flex flex-col items-center justify-between backdrop-blur-md">
-          <div className="w-full text-left text-xs text-slate-400 mb-2 font-bold tracking-wider flex justify-between items-center">
-            <span>[NEURAL REACTOR 3D]</span>
-            {isSpeaking && (
-              <button
-                type="button"
-                onClick={stopSpeaking}
-                className="text-[9px] bg-rose-500/20 border border-rose-500 text-rose-300 px-2 py-0.5 rounded hover:bg-rose-500/40 transition animate-pulse"
-              >
-                ZITTISCI
-              </button>
-            )}
+      {/* Main Layout - Full Width per Neural Inspector e Chat */}
+      <div className="flex flex-col gap-6 my-4 flex-1 z-10">
+        <NeuralInspectorPanel
+          nodes={neuralNodes}
+          onUpdateNode={handleUpdateNode}
+          onDeleteNode={handleDeleteNode}
+          onAddNode={handleAddNode}
+        />
+
+        <div className="border border-cyan-500/20 bg-slate-900/40 rounded-xl p-4 flex flex-col flex-1 backdrop-blur-md">
+          <div className="text-xs text-slate-400 mb-2 font-bold tracking-wider flex justify-between items-center">
+            <span>[CHAT & TERMINAL OUTPUT]</span>
           </div>
 
-          <CyberCoreScene isWorking={isLoading || isListening || isSpeaking} />
-          <NeuralReactor isSpeaking={isSpeaking} isListening={isListening} />
-        </div>
-
-        <div className="lg:col-span-3 flex flex-col gap-6">
-          <NeuralInspectorPanel
-            nodes={neuralNodes}
-            onUpdateNode={handleUpdateNode}
-            onDeleteNode={handleDeleteNode}
-            onAddNode={handleAddNode}
-          />
-
-          <div className="border border-cyan-500/20 bg-slate-900/40 rounded-xl p-4 flex flex-col flex-1 backdrop-blur-md">
-            <div className="text-xs text-slate-400 mb-2 font-bold tracking-wider flex justify-between items-center">
-              <span>[CHAT & TERMINAL OUTPUT]</span>
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-2 min-h-[300px] max-h-[500px]">
-              {messages.map((m, idx) => (
-                <div
-                  key={idx}
-                  className={`p-3.5 rounded-lg border text-sm backdrop-blur-sm ${
-                    m.role === "user"
-                      ? "border-emerald-500/30 bg-emerald-950/20 text-emerald-300 ml-auto max-w-[85%]"
-                      : "border-cyan-500/30 bg-cyan-950/20 text-cyan-200 mr-auto max-w-[85%]"
-                  }`}
-                >
-                  <div className="text-[10px] opacity-60 mb-1">
-                    {m.role === "user" ? "> USER_INPUT" : "> Unix_RESPONSE"}
-                  </div>
-                  {m.file && (
-                    <div className="mb-2 p-2 bg-slate-950/60 border border-cyan-500/30 rounded flex items-center gap-2 text-xs text-cyan-300">
-                      <span>📎</span>
-                      <span className="font-semibold truncate">{m.file.name}</span>
-                      <span className="text-slate-500">({m.file.size})</span>
-                    </div>
-                  )}
-                  <div className="whitespace-pre-wrap leading-relaxed">{m.content}</div>
-                </div>
-              ))}
-              {isLoading && (
-                <div className="text-xs text-cyan-400 animate-pulse p-2">
-                  [Unix IS PROCESSING & REASONING...]
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {selectedFile && (
-              <div className="flex items-center justify-between bg-cyan-950/80 border border-cyan-500/50 px-3 py-1.5 rounded-lg text-xs text-cyan-300 mb-2">
-                <div className="flex items-center gap-2 truncate">
-                  <span className="font-bold text-cyan-400">📎 [FILE READY]</span>
-                  <span className="truncate max-w-[250px] font-medium">{selectedFile.name}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedFile(null)}
-                  className="text-rose-400 hover:text-rose-300 font-bold ml-2 transition"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="flex gap-2 items-center">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                className="hidden"
-                accept="audio/*,image/*,.py,.ts,.js,.rs,.json,.txt,.md"
-              />
-
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="p-2.5 rounded-lg border bg-slate-900 border-cyan-500/40 text-cyan-400 hover:bg-cyan-950/40 transition font-bold text-lg leading-none"
-              >
-                +
-              </button>
-
-              <button
-                type="button"
-                onClick={toggleListening}
-                className={`p-2.5 rounded-lg border transition ${
-                  isListening
-                    ? "bg-rose-600/30 border-rose-500 text-rose-300 animate-pulse"
-                    : "bg-slate-900 border-cyan-500/40 text-cyan-400 hover:bg-cyan-950/40"
+          <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-2 min-h-[350px] max-h-[600px]">
+            {messages.map((m, idx) => (
+              <div
+                key={idx}
+                className={`p-3.5 rounded-lg border text-sm backdrop-blur-sm ${
+                  m.role === "user"
+                    ? "border-emerald-500/30 bg-emerald-950/20 text-emerald-300 ml-auto max-w-[85%]"
+                    : "border-cyan-500/30 bg-cyan-950/20 text-cyan-200 mr-auto max-w-[85%]"
                 }`}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                </svg>
-              </button>
-
-              <input
-                type="text"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder={isListening ? "Parla ora..." : "Digita il tuo messaggio..."}
-                className="flex-1 bg-slate-950/80 border border-cyan-500/40 rounded-lg px-4 py-2.5 text-sm text-cyan-100 placeholder-slate-600 focus:outline-none focus:border-cyan-400 transition"
-              />
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="bg-cyan-600/30 border border-cyan-400 text-cyan-300 hover:bg-cyan-500/30 px-5 py-2.5 rounded-lg text-sm font-semibold transition disabled:opacity-50"
-              >
-                INVIA
-              </button>
-            </form>
+                <div className="text-[10px] opacity-60 mb-1">
+                  {m.role === "user" ? "> USER_INPUT" : "> Unix_RESPONSE"}
+                </div>
+                {m.file && (
+                  <div className="mb-2 p-2 bg-slate-950/60 border border-cyan-500/30 rounded flex items-center gap-2 text-xs text-cyan-300">
+                    <span>📎</span>
+                    <span className="font-semibold truncate">{m.file.name}</span>
+                    <span className="text-slate-500">({m.file.size})</span>
+                  </div>
+                )}
+                <div className="whitespace-pre-wrap leading-relaxed">{m.content}</div>
+              </div>
+            ))}
+            {isLoading && (
+              <div className="text-xs text-cyan-400 animate-pulse p-2">
+                [Unix IS PROCESSING, REASONING & UPDATING NEURONS...]
+              </div>
+            )}
+            <div ref={messagesEndRef} />
           </div>
+
+          {selectedFile && (
+            <div className="flex items-center justify-between bg-cyan-950/80 border border-cyan-500/50 px-3 py-1.5 rounded-lg text-xs text-cyan-300 mb-2">
+              <div className="flex items-center gap-2 truncate">
+                <span className="font-bold text-cyan-400">📎 [FILE READY]</span>
+                <span className="truncate max-w-[250px] font-medium">{selectedFile.name}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedFile(null)}
+                className="text-rose-400 hover:text-rose-300 font-bold ml-2 transition"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="flex gap-2 items-center">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              accept="audio/*,image/*,.py,.ts,.js,.rs,.json,.txt,.md"
+            />
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="p-2.5 rounded-lg border bg-slate-900 border-cyan-500/40 text-cyan-400 hover:bg-cyan-950/40 transition font-bold text-lg leading-none"
+            >
+              +
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleListening}
+              className={`p-2.5 rounded-lg border transition ${
+                isListening
+                  ? "bg-rose-600/30 border-rose-500 text-rose-300 animate-pulse"
+                  : "bg-slate-900 border-cyan-500/40 text-cyan-400 hover:bg-cyan-950/40"
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              </svg>
+            </button>
+
+            <input
+              type="text"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder={isListening ? "Parla ora..." : "Digita il tuo messaggio..."}
+              className="flex-1 bg-slate-950/80 border border-cyan-500/40 rounded-lg px-4 py-2.5 text-sm text-cyan-100 placeholder-slate-600 focus:outline-none focus:border-cyan-400 transition"
+            />
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="bg-cyan-600/30 border border-cyan-400 text-cyan-300 hover:bg-cyan-500/30 px-5 py-2.5 rounded-lg text-sm font-semibold transition disabled:opacity-50"
+            >
+              INVIA
+            </button>
+          </form>
         </div>
       </div>
     </div>
