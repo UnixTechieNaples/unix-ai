@@ -59,12 +59,13 @@ export async function POST(req: Request) {
     const clientUserAgent = headers.get("user-agent") || "Sconosciuto";
     
     const userPrompt = body?.prompt || body?.userPrompt || body?.message || body?.messages?.[body.messages?.length - 1]?.content;
+    const attachedFile = body?.attachedFile; // Supporto Visione Multimodale
     const userId = body?.userId || "admin-super-unix";
     const userName = body?.userName || "unix.unix@gmail.com";
     const memoryContext = body?.memoryContext || "";
 
-    if (!userPrompt) {
-      return NextResponse.json({ success: false, error: "Nessun prompt fornito." }, { status: 400 });
+    if (!userPrompt && !attachedFile) {
+      return NextResponse.json({ success: false, error: "Nessun prompt o file fornito." }, { status: 400 });
     }
 
     let isSuperAdmin = false;
@@ -79,7 +80,7 @@ export async function POST(req: Request) {
     let replyText = "";
     let savedNewNodes: Array<{ id: string; title: string; content: string; type: string; timestamp: string }> = [];
 
-    const lowerPrompt = userPrompt.toLowerCase();
+    const lowerPrompt = (userPrompt || "").toLowerCase();
     if (
       lowerPrompt.includes("chi è loggato") || 
       lowerPrompt.includes("chi sta connesso") || 
@@ -108,7 +109,7 @@ export async function POST(req: Request) {
         lowerPrompt.includes("meteo") ||
         lowerPrompt.includes("prezzi");
 
-      if (needsSearch) {
+      if (needsSearch && userPrompt) {
         webSearchResults = await searchWeb(userPrompt);
       }
 
@@ -131,7 +132,7 @@ ${webSearchResults || "Nessuna ricerca web necessaria o effettuata per questa ri
 CONTESTO ATTUALE DELLA MEMORIA NEURALE:
 ${memoryContext}
 
-MEMORIA DI RETE E FATTI APPRESI IN PRECEDENZA DAGLI UTENTI:
+MEMORIA DE RETE E FATTI APPRESI IN PRECEDENZA DAGLI UTENTI:
 ${memoriaGlobale || "Nessun fatto precedente salvato."}
 
 REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
@@ -151,7 +152,27 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
 Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove informazioni rilevanti da memorizzare, oppure contenere 1 o 2 nuovi nodi se emerge un concetto importante da ricordare.
       `;
 
-      const modelsToTry = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "llama-3.3-70b-versatile"];
+      // Costruzione del messaggio utente (supporto multimodale se c'è un'immagine)
+      let userMessageContent: any = userPrompt || "Analizza questo file allegato.";
+      let activeModel = "llama-3.3-70b-versatile";
+
+      if (attachedFile && attachedFile.type && attachedFile.type.startsWith('image/')) {
+        activeModel = "llama-3.2-11b-vision-preview"; // Modello Groq Vision
+        userMessageContent = [
+          {
+            type: "text",
+            text: userPrompt || "Analizza questa immagine in dettaglio e descrivine i punti chiave."
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: attachedFile.data // Stringa Base64 dell'immagine
+            }
+          }
+        ];
+      }
+
+      const modelsToTry = [activeModel, "openai/gpt-oss-20b", "llama-3.3-70b-versatile"];
       let rawContent = null;
       let lastError = "";
 
@@ -161,7 +182,7 @@ Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove inf
             model: modelName,
             messages: [
               { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt }
+              { role: "user", content: userMessageContent }
             ],
             temperature: 0.7,
             max_tokens: 2048,
@@ -170,7 +191,7 @@ Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove inf
           rawContent = completion.choices[0]?.message?.content;
           if (rawContent) {
             if (userId) {
-              await salvaUtente(userId, `Interazione: ${userPrompt.substring(0, 50)}...`, userName, clientIp, clientUserAgent);
+              await salvaUtente(userId, `Interazione: ${(userPrompt || 'File immagine').substring(0, 50)}...`, userName, clientIp, clientUserAgent);
             }
             break;
           }
@@ -182,7 +203,7 @@ Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove inf
       if (!rawContent) {
         return NextResponse.json({
           success: false,
-          reply: `Errore Groq GPT-OSS: ${lastError}`,
+          reply: `Errore Groq Model: ${lastError}`,
           error: lastError
         }, { status: 500 });
       }
@@ -225,7 +246,7 @@ Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove inf
     return NextResponse.json({
       success: true,
       reply: replyText,
-      newNodes: savedNewNodes, // Restituisce i neuroni reali generati e salvati nel DB
+      newNodes: savedNewNodes,
       audio: audioData,
       patches: null
     });
@@ -271,8 +292,6 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ success: false, error: "ID del neurone non fornito." }, { status: 400 });
     }
 
-    // Se nel tuo modulo db/memory è definita una funzione di rimozione la invocherà, 
-    // altrimenti risponde con successo per aggiornare lo stato.
     return NextResponse.json({ success: true, message: `Richiesta rimozione neurone ${nodeId} ricevuta per l'utente ${userId}.` });
   } catch (err: any) {
     console.error("Errore cancellazione DELETE neurone:", err);

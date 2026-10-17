@@ -1,16 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
- * Salva un vettore di memoria o un frammento di codice nella base dati
+ * Salva un frammento di memoria o un blocco di codice nella base dati vettoriale
  */
 export async function storeMemoryEmbeddings(content: string, metadata: object = {}) {
   try {
-    // Nota: L'embedding vettoriale può essere generato tramite modello o API dedicate
     const { data, error } = await supabase
       .from("ai_memory_store")
       .insert([{ content, metadata, created_at: new Date().toISOString() }]);
@@ -24,21 +23,20 @@ export async function storeMemoryEmbeddings(content: string, metadata: object = 
 }
 
 /**
- * Recupera memorie simili basate su query semantiche
+ * Recupera memorie simili basate sulla ricerca semantica tramite la funzione RPC di Supabase
  */
 export async function searchVectorMemory(queryText: string) {
   try {
-    // Esempio di chiamata RPC a funzione Postgres in Supabase per la ricerca di similarità
     const { data, error } = await supabase.rpc("match_ai_memories", {
       query_text: queryText,
-      match_threshold: 0.78,
+      match_threshold: 0.70,
       match_count: 5,
     });
 
     if (error) throw error;
-    return { success: true, data };
+    return { success: true, data: data || [] };
   } catch (error: any) {
     console.error("Errore nella ricerca vettoriale:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: error.message, data: [] };
   }
 }

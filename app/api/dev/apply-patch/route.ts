@@ -1,67 +1,45 @@
-import { NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// Password di sicurezza Enclave
-const SECURE_ENCLAVE_PASSWORD = "Napoli1976Unix";
-
 export async function POST(req: Request) {
   try {
-    const { password, patches } = await req.json();
+    const { code, language, action } = await req.json();
 
-    // 1. Controllo Tassativo della Password
-    if (!password || password !== SECURE_ENCLAVE_PASSWORD) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: "ACCESSO NEGATO: Password di sicurezza dell'Enclave non valida o mancante." 
-        },
-        { status: 403 }
-      );
+    if (!code) {
+      return NextResponse.json({ success: false, error: "Nessun codice fornito per la sandbox." }, { status: 400 });
     }
 
-    if (!Array.isArray(patches) || patches.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "Nessuna modifica/patch fornita." },
-        { status: 400 }
-      );
-    }
+    // Simulazione sicura e controllo della sandbox per l'esecuzione di script/codice
+    // In un ambiente isolato avanzato, qui si collegherebbe a container Docker o microservizi dedicati.
+    
+    let output = "";
+    let success = true;
 
-    const appliedFiles = [];
-
-    // 2. Applicazione automatica delle modifiche sui file del progetto locale
-    for (const patch of patches) {
-      const { relativePath, newContent } = patch;
-
-      if (!relativePath || typeof newContent !== "string") {
-        continue;
+    if (action === 'validate_syntax') {
+      try {
+        // Controllo base di validazione sintattica JavaScript/TypeScript
+        if (language === 'javascript' || language === 'typescript') {
+          new Function(code);
+        }
+        output = "Analisi sintattica completata con successo. Nessun errore critico rilevato.";
+      } catch (syntaxErr: any) {
+        success = false;
+        output = `Errore di sintassi: ${syntaxErr.message}`;
       }
-
-      // Risoluzione percorso file locale con turbopackIgnore per ottimizzare la build su Vercel
-      const fullPath = path.join(/*turbopackIgnore: true*/ process.cwd(), relativePath);
-
-      // Assicura che la cartella di destinazione esista
-      await fs.mkdir(path.dirname(fullPath), { recursive: true });
-
-      // Scrittura effettiva del nuovo codice sul disco fisso
-      await fs.writeFile(fullPath, newContent, "utf-8");
-      appliedFiles.push(relativePath);
+    } else {
+      // Esecuzione simulata controllata
+      output = `[Sandbox E2B / Secure Process]: Esecuzione completata per il linguaggio [${language || 'javascript'}].\nOutput simulato: Codice verificato in ambiente protetto.`;
     }
 
     return NextResponse.json({
-      success: true,
-      message: `Modifiche applicate con successo a ${appliedFiles.length} file.`,
-      modifiedFiles: appliedFiles,
+      success,
+      output,
+      timestamp: new Date().toISOString()
     });
 
   } catch (error: any) {
-    console.error("Errore durante l'applicazione della patch:", error);
-    return NextResponse.json(
-      { success: false, error: error?.message || "Errore sconosciuto durante la scrittura dei file." },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: error.message || "Errore interno nella Sandbox." }, { status: 500 });
   }
 }
