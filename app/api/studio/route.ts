@@ -39,7 +39,6 @@ export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
     
-    // Estrazione di IP e User-Agent dagli headers della richiesta HTTP
     const headers = req.headers;
     const forwardedFor = headers.get("x-forwarded-for");
     const clientIp = forwardedFor ? forwardedFor.split(",")[0].trim() : headers.get("x-real-ip") || "Sconosciuto";
@@ -76,6 +75,7 @@ export async function POST(req: Request) {
         return NextResponse.json({
           success: true,
           reply: "Accesso negato: questa funzione di monitoraggio è riservata esclusivamente al Super Admin.",
+          newNodes: [],
           patches: null
         });
       } else {
@@ -84,12 +84,12 @@ export async function POST(req: Request) {
         return NextResponse.json({
           success: true,
           reply: `Report accessi e utenti registrati nel database:\n\n${formattedReport}`,
+          newNodes: [],
           patches: null
         });
       }
     }
 
-    // Rilevamento automatico se la richiesta necessita di una ricerca web live
     let webSearchResults = "";
     const needsSearch = 
       lowerPrompt.includes("cerca") || 
@@ -128,15 +128,25 @@ ${memoryContext}
 MEMORIA DI RETE E FATTI APPRESI IN PRECEDENZA DAGLI UTENTI:
 ${memoriaGlobale || "Nessun fatto precedente salvato."}
 
-REGOLE TASSATIVE:
+REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
 1. Non presentarti mai come Jarvis, presentati semplicemente come un assistente o un collega.
 2. È SEVERAMENTE VIETATO l'uso di tabelle, elenchi puntati o elenchi numerati di qualsiasi tipo.
-3. Se sono presenti "DATI AGGIORNATI ESTRATTI DALLA RETE INTERNET", DEVI utilizzarli obbligatoriamente per rispondere, integrandoli in modo fluido e naturale senza mai affermare di non poter accedere a internet.
-4. Rispondi SEMPRE e SOLO con paragrafi di testo discorsivo, fluido e naturale in lingua italiana, completando sempre le frasi senza tagliarle.
+3. Se sono presenti "DATI AGGIORNATI ESTRATTI DALLA RETE INTERNET", DEVI utilizzarli obbligatoriamente per rispondere, integrandoli in modo fluido e naturale.
+4. Rispondi SEMPRE restituendo un oggetto JSON valido nel seguente formato esatto (senza blocchi di codice markdown aggiuntivi attorno al JSON se non strettamente necessario, oppure pulito):
+{
+  "reply": "Il tuo testo discorsivo, fluido e naturale in lingua italiana, che si conclude sempre con un rilancio o una domanda.",
+  "newNodes": [
+    {
+      "title": "Breve etichetta per il nuovo concetto o memoria emersa",
+      "content": "Descrizione approfondita o fatto appreso da salvare nella memoria neurale."
+    }
+  ]
+}
+Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove informazioni rilevanti da memorizzare, oppure contenere 1 o 2 nuovi nodi se emerge un concetto importante da ricordare.
     `;
 
     const modelsToTry = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "llama-3.3-70b-versatile"];
-    let replyText = null;
+    let rawContent = null;
     let lastError = "";
 
     for (const modelName of modelsToTry) {
@@ -151,8 +161,8 @@ REGOLE TASSATIVE:
           max_tokens: 2048,
         });
 
-        replyText = completion.choices[0]?.message?.content;
-        if (replyText) {
+        rawContent = completion.choices[0]?.message?.content;
+        if (rawContent) {
           if (userId) {
             await salvaUtente(userId, `Interazione: ${userPrompt.substring(0, 50)}...`, userName || "Utente", clientIp, clientUserAgent);
           }
@@ -163,7 +173,7 @@ REGOLE TASSATIVE:
       }
     }
 
-    if (!replyText) {
+    if (!rawContent) {
       return NextResponse.json({
         success: false,
         reply: `Errore Groq GPT-OSS: ${lastError}`,
@@ -171,9 +181,24 @@ REGOLE TASSATIVE:
       }, { status: 500 });
     }
 
+    // Tentativo di parsing del JSON restituito dall'IA
+    let parsedResponse;
+    try {
+      // Pulizia di eventuali backtick di markdown nel caso l'IA li includa
+      const cleanedJsonString = rawContent.replace(/```json/g, "").replace(/```/g, "").trim();
+      parsedResponse = JSON.parse(cleanedJsonString);
+    } catch (parseErr) {
+      // Fallback se l'IA risponde con solo testo semplice anziché JSON
+      parsedResponse = {
+        reply: rawContent,
+        newNodes: []
+      };
+    }
+
     return NextResponse.json({
       success: true,
-      reply: replyText,
+      reply: parsedResponse.reply || rawContent,
+      newNodes: parsedResponse.newNodes || [],
       patches: null
     });
 
