@@ -22,7 +22,7 @@ export default function StudioDashboard() {
 
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Memoria Neuroni con i testi predefiniti
+  // Memoria Neuroni iniziali di fallback
   const [neuralNodes, setNeuralNodes] = useState<NeuralMemoryNode[]>([
     {
       id: "1",
@@ -39,6 +39,22 @@ export default function StudioDashboard() {
       timestamp: new Date().toLocaleTimeString(),
     }
   ]);
+
+  // Caricamento automatico dei neuroni persistenti dal database all'avvio
+  useEffect(() => {
+    async function loadPersistentNodes() {
+      try {
+        const res = await fetch(`/api/studio?userId=${user?.id || "admin-super-unix"}`);
+        const data = await res.json();
+        if (data.success && data.nodes && data.nodes.length > 0) {
+          setNeuralNodes(data.nodes);
+        }
+      } catch (err) {
+        console.error("Errore nel caricamento dei neuroni persistenti:", err);
+      }
+    }
+    loadPersistentNodes();
+  }, [user]);
 
   const [selectedFile, setSelectedFile] = useState<{
     file: File;
@@ -264,7 +280,7 @@ export default function StudioDashboard() {
         <div className="flex gap-3 text-xs items-center">
           <div className="border border-cyan-500/30 px-3 py-1 rounded bg-slate-900/50 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            CORE: <span className="text-emerald-400 font-bold">ONLINE (MEMORIA DINAMICA ATTIVA)</span>
+            CORE: <span className="text-emerald-400 font-bold">ONLINE (VOCE E MEMORIA PERSISTENTE)</span>
           </div>
           {isSpeaking && (
             <button
@@ -317,7 +333,7 @@ export default function StudioDashboard() {
             ))}
             {isLoading && (
               <div className="text-xs text-cyan-400 animate-pulse p-2">
-                [Unix IS PROCESSING, REASONING & UPDATING NEURONS...]
+                [Unix IS PROCESSING, REASONING & GENERATING VOICE...]
               </div>
             )}
             <div ref={messagesEndRef} />
