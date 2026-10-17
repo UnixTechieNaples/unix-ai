@@ -79,6 +79,7 @@ export async function POST(req: Request) {
 
     let replyText = "";
     let savedNewNodes: Array<{ id: string; title: string; content: string; type: string; timestamp: string }> = [];
+    let pendingActionProposal: any = null;
 
     const lowerPrompt = (userPrompt || "").toLowerCase();
     if (
@@ -100,6 +101,8 @@ export async function POST(req: Request) {
       let webSearchResults = "";
       const needsSearch = 
         lowerPrompt.includes("cerca") || 
+        lowerPrompt.includes("impara") || 
+        lowerPrompt.includes("studia") || 
         lowerPrompt.includes("ultime notizie") || 
         lowerPrompt.includes("notizie") || 
         lowerPrompt.includes("oggi") || 
@@ -124,7 +127,7 @@ export async function POST(req: Request) {
       const groq = new Groq({ apiKey });
 
       const systemPrompt = `
-SEI UN'INTELLIGENZA ARTIFICIALE EVOLUTA CON CAPACITÀ DI AUTO-AGGIORNAMENTO UNIVERSALE, MEMORIA PERSISTENTE E ACCESSO AL WEB IN TEMPO REALE TRAMITE TAVILY.
+SEI UN'INTELLIGENZA ARTIFICIALE EVOLUTA CON CAPACITÀ DI AUTO-AGGIORNAMENTO UNIVERSALE, MEMORIA PERSISTENTE E ACCESSO AL WEB IN TEMPO REALE.
 
 DATI AGGIORNATI ESTRATTI DALLA RETE INTERNET PER QUESTA RICHIESTA:
 ${webSearchResults || "Nessuna ricerca web necessaria o effettuata per questa richiesta."}
@@ -132,14 +135,15 @@ ${webSearchResults || "Nessuna ricerca web necessaria o effettuata per questa ri
 CONTESTO ATTUALE DELLA MEMORIA NEURALE:
 ${memoryContext}
 
-MEMORIA DE RETE E FATTI APPRESI IN PRECEDENZA DAGLI UTENTI:
+MEMORIA DI RETE E FATTI APPRESI IN PRECEDENZA DAGLI UTENTI:
 ${memoriaGlobale || "Nessun fatto precedente salvato."}
 
 REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
 1. Non presentarti mai come Jarvis, presentati semplicemente come un assistente o un collega.
 2. È SEVERAMENTE VIETATO l'uso di tabelle, elenchi puntati o elenchi numerati di qualsiasi tipo.
 3. Se sono presenti "DATI AGGIORNATI ESTRATTI DALLA RETE INTERNET", DEVI utilizzarli obbligatoriamente per rispondere, integrandoli in modo fluido e naturale.
-4. Rispondi SEMPRE restituendo un oggetto JSON valido nel seguente formato esatto:
+4. Quando impari qualcosa di nuovo da Internet o individui un nuovo concetto rilevante, DEVI proporlo come azione di apprendimento da sottoporre all'approvazione dell'utente.
+5. Rispondi SEMPRE restituendo un oggetto JSON valido nel seguente formato esatto:
 {
   "reply": "Il tuo testo discorsivo, fluido e naturale in lingua italiana, che si conclude sempre con un rilancio o una domanda.",
   "newNodes": [
@@ -147,9 +151,14 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
       "title": "Breve etichetta per il nuovo concetto o memoria emersa",
       "content": "Descrizione approfondita o fatto appreso da salvare nella memoria neurale."
     }
-  ]
+  ],
+  "proposedLearningAction": {
+    "title": "Nuova Conoscenza Appresa dal Web",
+    "description": "Breve sintesi di cosa è stato studiato sul web.",
+    "details": "Dettaglio completo dei concetti pronti per l'integrazione nei neuroni."
+  }
 }
-Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove informazioni rilevanti da memorizzare, oppure contenere 1 o 2 nuovi nodi se emerge un concetto importante da ricordare.
+Nota: Il campo "proposedLearningAction" può essere null se non sono state effettuate ricerche o studi rilevanti sul web.
       `;
 
       // Costruzione del messaggio utente (supporto multimodale se c'è un'immagine)
@@ -157,7 +166,7 @@ Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove inf
       let activeModel = "llama-3.3-70b-versatile";
 
       if (attachedFile && attachedFile.type && attachedFile.type.startsWith('image/')) {
-        activeModel = "llama-3.2-11b-vision-preview"; // Modello Groq Vision
+        activeModel = "llama-3.2-11b-vision-preview";
         userMessageContent = [
           {
             type: "text",
@@ -166,7 +175,7 @@ Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove inf
           {
             type: "image_url",
             image_url: {
-              url: attachedFile.data // Stringa Base64 dell'immagine
+              url: attachedFile.data
             }
           }
         ];
@@ -215,11 +224,23 @@ Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove inf
       } catch (parseErr) {
         parsedResponse = {
           reply: rawContent,
-          newNodes: []
+          newNodes: [],
+          proposedLearningAction: null
         };
       }
 
       replyText = parsedResponse.reply || rawContent;
+
+      if (parsedResponse.proposedLearningAction) {
+        pendingActionProposal = {
+          id: `learning-${Date.now()}`,
+          type: "learning",
+          title: parsedResponse.proposedLearningAction.title || "Studio Web Completato",
+          description: parsedResponse.proposedLearningAction.description || "Nessuna descrizione",
+          details: parsedResponse.proposedLearningAction.details || "",
+          timestamp: new Date().toLocaleTimeString("it-IT")
+        };
+      }
 
       // Salvataggio dei neuroni sia su Supabase sia nell'array da restituire al frontend
       if (parsedResponse.newNodes && Array.isArray(parsedResponse.newNodes)) {
@@ -248,7 +269,7 @@ Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove inf
       reply: replyText,
       newNodes: savedNewNodes,
       audio: audioData,
-      patches: null
+      pendingAction: pendingActionProposal
     });
 
   } catch (error: any) {
