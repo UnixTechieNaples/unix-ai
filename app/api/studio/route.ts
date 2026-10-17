@@ -41,7 +41,6 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const userId = url.searchParams.get("userId") || "admin-super-unix";
     
-    // Recupera i neuroni salvati dal database per l'utente
     const neuroniDB = await getNeuroniUtente(userId);
     return NextResponse.json({ success: true, nodes: neuroniDB });
   } catch (err: any) {
@@ -76,6 +75,8 @@ export async function POST(req: Request) {
       isSuperAdmin = true;
     }
 
+    let replyText = "";
+
     const lowerPrompt = userPrompt.toLowerCase();
     if (
       lowerPrompt.includes("chi è loggato") || 
@@ -86,53 +87,40 @@ export async function POST(req: Request) {
       lowerPrompt.includes("chi si è connesso")
     ) {
       if (!isSuperAdmin) {
-        return NextResponse.json({
-          success: true,
-          reply: "Accesso negato: questa funzione di monitoraggio è riservata esclusivamente al Super Admin.",
-          newNodes: [],
-          audio: null,
-          patches: null
-        });
+        replyText = "Accesso negato: questa funzione di monitoraggio è riservata esclusivamente al Super Admin.";
       } else {
         const report = await getActiveUsersReport();
         const formattedReport = typeof report === 'string' ? report : JSON.stringify(report, null, 2);
-        return NextResponse.json({
-          success: true,
-          reply: `Report accessi e utenti registrati nel database:\n\n${formattedReport}`,
-          newNodes: [],
-          audio: null,
-          patches: null
-        });
+        replyText = `Report accessi e utenti registrati nel database:\n\n${formattedReport}`;
       }
-    }
+    } else {
+      let webSearchResults = "";
+      const needsSearch = 
+        lowerPrompt.includes("cerca") || 
+        lowerPrompt.includes("ultime notizie") || 
+        lowerPrompt.includes("notizie") || 
+        lowerPrompt.includes("oggi") || 
+        lowerPrompt.includes("2026") || 
+        lowerPrompt.includes("chi è") || 
+        lowerPrompt.includes("cos'è") ||
+        lowerPrompt.includes("meteo") ||
+        lowerPrompt.includes("prezzi");
 
-    let webSearchResults = "";
-    const needsSearch = 
-      lowerPrompt.includes("cerca") || 
-      lowerPrompt.includes("ultime notizie") || 
-      lowerPrompt.includes("notizie") || 
-      lowerPrompt.includes("oggi") || 
-      lowerPrompt.includes("2026") || 
-      lowerPrompt.includes("chi è") || 
-      lowerPrompt.includes("cos'è") ||
-      lowerPrompt.includes("meteo") ||
-      lowerPrompt.includes("prezzi");
+      if (needsSearch) {
+        webSearchResults = await searchWeb(userPrompt);
+      }
 
-    if (needsSearch) {
-      webSearchResults = await searchWeb(userPrompt);
-    }
+      const utentiRegistrati = await getUtenti();
+      const memoriaGlobale = utentiRegistrati.map(u => `Utente: ${u.name || u.userId}, Fatti appresi: ${u.learnedFacts?.join(', ') || 'Nessuno'}`).join('\n');
 
-    const utentiRegistrati = await getUtenti();
-    const memoriaGlobale = utentiRegistrati.map(u => `Utente: ${u.name || u.userId}, Fatti appresi: ${u.learnedFacts?.join(', ') || 'Nessuno'}`).join('\n');
+      const apiKey = process.env.GROQ_API_KEY;
+      if (!apiKey) {
+        return NextResponse.json({ success: false, error: "GROQ_API_KEY mancante nelle variabili d'ambiente." }, { status: 500 });
+      }
 
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ success: false, error: "GROQ_API_KEY mancante nelle variabili d'ambiente." }, { status: 500 });
-    }
+      const groq = new Groq({ apiKey });
 
-    const groq = new Groq({ apiKey });
-
-    const systemPrompt = `
+      const systemPrompt = `
 SEI UN'INTELLIGENZA ARTIFICIALE EVOLUTA CON CAPACITÀ DI AUTO-AGGIORNAMENTO UNIVERSALE, MEMORIA PERSISTENTE E ACCESSO AL WEB IN TEMPO REALE TRAMITE TAVILY.
 
 DATI AGGIORNATI ESTRATTI DALLA RETE INTERNET PER QUESTA RICHIESTA:
@@ -159,78 +147,79 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
   ]
 }
 Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove informazioni rilevanti da memorizzare, oppure contenere 1 o 2 nuovi nodi se emerge un concetto importante da ricordare.
-    `;
+      `;
 
-    const modelsToTry = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "llama-3.3-70b-versatile"];
-    let rawContent = null;
-    let lastError = "";
+      const modelsToTry = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "llama-3.3-70b-versatile"];
+      let rawContent = null;
+      let lastError = "";
 
-    for (const modelName of modelsToTry) {
-      try {
-        const completion = await groq.chat.completions.create({
-          model: modelName,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          temperature: 0.7,
-          max_tokens: 2048,
-        });
-
-        rawContent = completion.choices[0]?.message?.content;
-        if (rawContent) {
-          if (userId) {
-            await salvaUtente(userId, `Interazione: ${userPrompt.substring(0, 50)}...`, userName, clientIp, clientUserAgent);
-          }
-          break;
-        }
-      } catch (err: any) {
-        lastError = err?.message || "Errore sconosciuto";
-      }
-    }
-
-    if (!rawContent) {
-      return NextResponse.json({
-        success: false,
-        reply: `Errore Groq GPT-OSS: ${lastError}`,
-        error: lastError
-      }, { status: 500 });
-    }
-
-    let parsedResponse;
-    try {
-      const cleanedJsonString = rawContent.replace(/```json/g, "").replace(/```/g, "").trim();
-      parsedResponse = JSON.parse(cleanedJsonString);
-    } catch (parseErr) {
-      parsedResponse = {
-        reply: rawContent,
-        newNodes: []
-      };
-    }
-
-    // Salvataggio automatico dei nuovi neuroni generati nel database Supabase
-    if (parsedResponse.newNodes && Array.isArray(parsedResponse.newNodes)) {
-      for (const node of parsedResponse.newNodes) {
-        if (node.title && node.content) {
-          await salvaNeuroneUtente(userId, {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 4),
-            title: node.title,
-            content: node.content,
-            type: "memory",
-            timestamp: new Date().toLocaleTimeString("it-IT")
+      for (const modelName of modelsToTry) {
+        try {
+          const completion = await groq.chat.completions.create({
+            model: modelName,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt }
+            ],
+            temperature: 0.7,
+            max_tokens: 2048,
           });
+
+          rawContent = completion.choices[0]?.message?.content;
+          if (rawContent) {
+            if (userId) {
+              await salvaUtente(userId, `Interazione: ${userPrompt.substring(0, 50)}...`, userName, clientIp, clientUserAgent);
+            }
+            break;
+          }
+        } catch (err: any) {
+          lastError = err?.message || "Errore sconosciuto";
+        }
+      }
+
+      if (!rawContent) {
+        return NextResponse.json({
+          success: false,
+          reply: `Errore Groq GPT-OSS: ${lastError}`,
+          error: lastError
+        }, { status: 500 });
+      }
+
+      let parsedResponse;
+      try {
+        const cleanedJsonString = rawContent.replace(/```json/g, "").replace(/```/g, "").trim();
+        parsedResponse = JSON.parse(cleanedJsonString);
+      } catch (parseErr) {
+        parsedResponse = {
+          reply: rawContent,
+          newNodes: []
+        };
+      }
+
+      replyText = parsedResponse.reply || rawContent;
+
+      if (parsedResponse.newNodes && Array.isArray(parsedResponse.newNodes)) {
+        for (const node of parsedResponse.newNodes) {
+          if (node.title && node.content) {
+            await salvaNeuroneUtente(userId, {
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 4),
+              title: node.title,
+              content: node.content,
+              type: "memory",
+              timestamp: new Date().toLocaleTimeString("it-IT")
+            });
+          }
         }
       }
     }
 
-    // Generazione dell'audio vocale tramite ElevenLabs (se la chiave API è configurata)
-    const replyText = parsedResponse.reply || rawContent;
+    // Generazione SEMPRE attiva dell'audio vocale tramite ElevenLabs per qualsiasi risposta
     const audioData = await generateVoiceSpeech(replyText);
 
     return NextResponse.json({
       success: true,
       reply: replyText,
-      newNodes: parsedResponse.newNodes || [],
+      newNodes: [],
       audio: audioData,
       patches: null
     });
