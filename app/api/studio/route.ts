@@ -24,9 +24,21 @@ export async function POST(req: Request) {
     if (userId) {
       isSuperAdmin = await checkIsSuperAdmin(userId);
     }
+    
+    // Fallback di sicurezza per la tua email principale
+    if (userName === "unix.unix@gmail.com" || body?.userName === "unix.unix@gmail.com") {
+      isSuperAdmin = true;
+    }
 
     const lowerPrompt = userPrompt.toLowerCase();
-    if (lowerPrompt.includes("chi è loggato") || lowerPrompt.includes("utenti attivi") || lowerPrompt.includes("report accessi")) {
+    if (
+      lowerPrompt.includes("chi è loggato") || 
+      lowerPrompt.includes("chi sta connesso") || 
+      lowerPrompt.includes("chi è online") || 
+      lowerPrompt.includes("utenti attivi") || 
+      lowerPrompt.includes("report accessi") ||
+      lowerPrompt.includes("chi si è connesso")
+    ) {
       if (!isSuperAdmin) {
         return NextResponse.json({
           success: true,
@@ -35,9 +47,10 @@ export async function POST(req: Request) {
         });
       } else {
         const report = await getActiveUsersReport();
+        const formattedReport = typeof report === 'string' ? report : JSON.stringify(report, null, 2);
         return NextResponse.json({
           success: true,
-          reply: report,
+          reply: `Report accessi e utenti registrati nel database:\n\n${formattedReport}`,
           patches: null
         });
       }
