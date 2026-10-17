@@ -10,6 +10,12 @@ export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
     
+    // Estrazione di IP e User-Agent dagli headers della richiesta HTTP
+    const headers = req.headers;
+    const forwardedFor = headers.get("x-forwarded-for");
+    const clientIp = forwardedFor ? forwardedFor.split(",")[0].trim() : headers.get("x-real-ip") || "Sconosciuto";
+    const clientUserAgent = headers.get("user-agent") || "Sconosciuto";
+    
     // Gestione robusta per recuperare il prompt indipendentemente da come viene inviato dal frontend
     const userPrompt = body?.prompt || body?.userPrompt || body?.message || body?.messages?.[body.messages?.length - 1]?.content;
     const userId = body?.userId;
@@ -100,7 +106,8 @@ REGOLE TASSATIVE:
         replyText = completion.choices[0]?.message?.content;
         if (replyText) {
           if (userId) {
-            await salvaUtente(userId, `Interazione: ${userPrompt.substring(0, 50)}...`, userName || "Utente");
+            // Salvataggio utente con inclusione di IP e User-Agent
+            await salvaUtente(userId, `Interazione: ${userPrompt.substring(0, 50)}...`, userName || "Utente", clientIp, clientUserAgent);
           }
           break;
         }
