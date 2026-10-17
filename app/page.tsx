@@ -24,19 +24,19 @@ export default function StudioDashboard() {
 
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Memoria Neuroni
+  // Memoria Neuroni con i nuovi testi predefiniti definiti
   const [neuralNodes, setNeuralNodes] = useState<NeuralMemoryNode[]>([
     {
       id: "1",
       title: "Core System Prompt",
-      content: "Sei un'intelligenza artificiale evoluta, calda e collaborativa. Conversi in modo naturale, fluido e diretto in un botta e risposta continuo.",
+      content: "Sei un'intelligenza artificiale evoluta, calda e collaborativa del Unix-AI Pro Studio. Conversi in modo naturale, fluido e diretto in un botta e risposta continuo. Esprimi sempre i tuoi pensieri attraverso paragrafi discorsivi e narrativi, evitando tassativamente elenchi puntati o tabelle. Fai in modo che ogni tua risposta si chiuda sempre con una domanda o un rilancio mirato per mantenere la conversazione viva e stimolante.",
       type: "context",
       timestamp: new Date().toLocaleTimeString(),
     },
     {
       id: "2",
       title: "Stato Rete Web & Memoria",
-      content: "Connessione Tavily attiva per ricerche in tempo reale. Memoria di rete sincronizzata.",
+      content: "Interagisci in modo caldo, fluido, discorsivo e naturale, esattamente come farebbe un vero partner umano. Evita tassativamente elenchi puntati o tabelle strutturate, preferendo blocchi di testo narrativi e discorsivi. Mantieni un tono empatico, brillante e reattivo, e concludi sempre ogni risposta con un rilancio o una domanda mirata per mantenere viva e attiva la conversazione.",
       type: "file",
       timestamp: new Date().toLocaleTimeString(),
     }
