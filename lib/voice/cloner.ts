@@ -3,15 +3,14 @@
 export async function generateVoiceSpeech(text: string, voiceId?: string): Promise<string | null> {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey || apiKey === "tua_chiave_elevenlabs_qui") {
-    console.warn("ELEVENLABS_API_KEY mancante o non valida.");
     return null;
   }
 
-  // Voice ID predefinito: priorità a voiceId passato -> DEFAULT_VOICE_ID da .env -> Voce di sistema Alice (Italiana)
-  const targetVoiceId = voiceId || process.env.DEFAULT_VOICE_ID || "Xb7hH8MSLrq25POB3837";
+  // Usiamo una voce nativa di default
+  const targetVoiceId = voiceId || process.env.DEFAULT_VOICE_ID || "EXAVITQu4vr4xnSDxMaL"; // Rachel nativa
 
   try {
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${targetVoiceId}`, {
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${targetVoiceId}?optimize_streaming_latency=3`, {
       method: "POST",
       headers: {
         "Accept": "audio/mpeg",
@@ -20,7 +19,7 @@ export async function generateVoiceSpeech(text: string, voiceId?: string): Promi
       },
       body: JSON.stringify({
         text: text,
-        model_id: "eleven_flash_v2_5", // Modello Flash velocissimo e interamente compatibile con i piani gratuiti
+        model_id: "eleven_turbo_v2_5", // Modello Turbo super leggero
         voice_settings: {
           stability: 0.5,
           similarity_boost: 0.75
@@ -30,16 +29,8 @@ export async function generateVoiceSpeech(text: string, voiceId?: string): Promi
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Errore ElevenLabs API:", errorText);
-
-      // Fallback automatico: se la voce specificata fallisce (es. blocco su voce personalizzata),
-      // ritenta immediatamente con la voce di sistema globale di default ("21m00Tcm4TlvDq8ikWAM")
-      if (targetVoiceId !== "21m00Tcm4TlvDq8ikWAM") {
-        console.log("Tentativo di ripiego con la voce di sistema predefinita...");
-        return generateVoiceSpeech(text, "21m00Tcm4TlvDq8ikWAM");
-      }
-
-      return null;
+      console.error("Errore ElevenLabs API bloccato:", errorText);
+      return null; // Restituisce null senza bloccare la chat
     }
 
     const arrayBuffer = await response.arrayBuffer();
