@@ -11,7 +11,6 @@ export default function StudioDashboard() {
   });
 
   const [prompt, setPrompt] = useState("");
-  // Aggiungiamo il campo opzionale `audio` in ciascun messaggio per poterlo ririverizzare con un pulsante dedicato
   const [messages, setMessages] = useState<Array<{ role: string; content: string; file?: { name: string; size: string }; audio?: string | null }>>([
     { role: "unix", content: "Unix-AI Pro Studio online. Connessione neurale stabilita e sincronizzata per unix.unix@gmail.com.", audio: null }
   ]);
@@ -95,12 +94,37 @@ export default function StudioDashboard() {
   };
 
   const stopSpeaking = () => {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current.currentTime = 0;
       currentAudioRef.current = null;
     }
     setIsSpeaking(false);
+  };
+
+  const speakNativeBrowser = (text: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    stopSpeaking();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "it-IT";
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    const voices = window.speechSynthesis.getVoices();
+    const italianVoice = voices.find((v) => v.lang.includes("it"));
+    if (italianVoice) {
+      utterance.voice = italianVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -125,8 +149,13 @@ export default function StudioDashboard() {
     }
   };
 
-  const playAudioStream = (audioSrc: string) => {
+  const playAudioStream = (audioSrc: string, fallbackText?: string) => {
     stopSpeaking();
+    if (!audioSrc && fallbackText) {
+      speakNativeBrowser(fallbackText);
+      return;
+    }
+
     const audio = new Audio(audioSrc);
     currentAudioRef.current = audio;
 
@@ -136,15 +165,21 @@ export default function StudioDashboard() {
       currentAudioRef.current = null;
     };
     audio.onerror = (e) => {
-      console.error("Errore riproduzione audio HTML5:", e);
+      console.warn("Errore riproduzione audio ElevenLabs, uso sintesi vocale del browser...", e);
       setIsSpeaking(false);
       currentAudioRef.current = null;
+      if (fallbackText) {
+        speakNativeBrowser(fallbackText);
+      }
     };
 
     audio.play().catch((err) => {
-      console.warn("Autoplay bloccato dal browser. Clicca sul pulsante audio per ascoltare.", err);
+      console.warn("Autoplay audio ElevenLabs bloccato, ricorso al browser...", err);
       setIsSpeaking(false);
       currentAudioRef.current = null;
+      if (fallbackText) {
+        speakNativeBrowser(fallbackText);
+      }
     });
   };
 
@@ -209,7 +244,9 @@ export default function StudioDashboard() {
         }
 
         if (data.audio) {
-          playAudioStream(data.audio);
+          playAudioStream(data.audio, replyContent);
+        } else {
+          speakNativeBrowser(replyContent);
         }
       } else if (data.error) {
         setMessages((prev) => [...prev, { role: "unix", content: `Errore: ${data.error}` }]);
@@ -323,16 +360,13 @@ export default function StudioDashboard() {
               >
                 <div className="text-[10px] opacity-60 mb-1 flex justify-between items-center">
                   <span>{m.role === "user" ? "> USER_INPUT" : "> Unix_RESPONSE"}</span>
-                  {/* Pulsante manuale per ascoltare la voce di questo messaggio specifico */}
-                  {m.audio && (
-                    <button
-                      type="button"
-                      onClick={() => playAudioStream(m.audio!)}
-                      className="text-[10px] bg-cyan-500/20 border border-cyan-400 text-cyan-300 px-2 py-0.5 rounded hover:bg-cyan-500/40 transition flex items-center gap-1 font-bold"
-                    >
-                      🔊 Ascolta Voce
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => playAudioStream(m.audio || "", m.content)}
+                    className="text-[10px] bg-cyan-500/20 border border-cyan-400 text-cyan-300 px-2 py-0.5 rounded hover:bg-cyan-500/40 transition flex items-center gap-1 font-bold"
+                  >
+                    🔊 Ascolta Voce
+                  </button>
                 </div>
                 {m.file && (
                   <div className="mb-2 p-2 bg-slate-950/60 border border-cyan-500/30 rounded flex items-center gap-2 text-xs text-cyan-300">
