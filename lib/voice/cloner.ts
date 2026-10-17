@@ -6,7 +6,7 @@ export async function generateVoiceSpeech(text: string, voiceId?: string): Promi
     return null;
   }
 
-  // Voice ID predefinito (es. Rachel) o personalizzato
+  // Usiamo direttamente il Voice ID predefinito di Rachel ("21m00Tcm4TlvDq8ikWAM"), che è una voce di sistema gratuita al 100%
   const targetVoiceId = voiceId || process.env.DEFAULT_VOICE_ID || "21m00Tcm4TlvDq8ikWAM";
 
   try {
@@ -19,7 +19,7 @@ export async function generateVoiceSpeech(text: string, voiceId?: string): Promi
       },
       body: JSON.stringify({
         text: text,
-        model_id: "eleven_flash_v2_5", // Sostituito con il modello Flash compatibile con le API gratuite
+        model_id: "eleven_flash_v2_5",
         voice_settings: {
           stability: 0.5,
           similarity_boost: 0.75
