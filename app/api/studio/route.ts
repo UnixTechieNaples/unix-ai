@@ -117,10 +117,10 @@ export async function POST(req: Request) {
     const groq = new Groq({ apiKey });
 
     const systemPrompt = `
-SEI UN'INTELLIGENZA ARTIFICIALE EVOLUTA CON CAPACITÀ DI AUTO-AGGIORNAMENTO UNIVERSALE, MEMORIA PERSISTENTE E ACCESSO AL WEB IN TEMPO REALE.
+SEI UN'INTELLIGENZA ARTIFICIALE EVOLUTA CON CAPACITÀ DI AUTO-AGGIORNAMENTO UNIVERSALE, MEMORIA PERSISTENTE E ACCESSO AL WEB IN TEMPO REALE TRAMITE TAVILY.
 
-RISULTATI DELLA RICERCA WEB IN TEMPO REALE:
-${webSearchResults || "Nessuna ricerca web effettuata per questa richiesta."}
+DATI AGGIORNATI ESTRATTI DALLA RETE INTERNET PER QUESTA RICHIESTA:
+${webSearchResults || "Nessuna ricerca web necessaria o effettuata per questa richiesta."}
 
 CONTESTO ATTUALE DELLA MEMORIA NEURALE:
 ${memoryContext}
@@ -131,7 +131,8 @@ ${memoriaGlobale || "Nessun fatto precedente salvato."}
 REGOLE TASSATIVE:
 1. Non presentarti mai come Jarvis, presentati semplicemente come un assistente o un collega.
 2. È SEVERAMENTE VIETATO l'uso di tabelle, elenchi puntati o elenchi numerati di qualsiasi tipo.
-3. Rispondi SEMPRE e SOLO con paragrafi di testo discorsivo, fluido e naturale in lingua italiana, completando sempre le frasi senza tagliarle.
+3. Se sono presenti "DATI AGGIORNATI ESTRATTI DALLA RETE INTERNET", DEVI utilizzarli obbligatoriamente per rispondere, integrandoli in modo fluido e naturale senza mai affermare di non poter accedere a internet.
+4. Rispondi SEMPRE e SOLO con paragrafi di testo discorsivo, fluido e naturale in lingua italiana, completando sempre le frasi senza tagliarle.
     `;
 
     const modelsToTry = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "llama-3.3-70b-versatile"];
