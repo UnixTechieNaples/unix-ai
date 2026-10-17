@@ -3,11 +3,12 @@
 export async function generateVoiceSpeech(text: string, voiceId?: string): Promise<string | null> {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey || apiKey === "tua_chiave_elevenlabs_qui") {
+    console.warn("ELEVENLABS_API_KEY mancante o non valida.");
     return null;
   }
 
-  // Usiamo direttamente il Voice ID predefinito di Rachel ("21m00Tcm4TlvDq8ikWAM"), che è una voce di sistema gratuita al 100%
-  const targetVoiceId = voiceId || process.env.DEFAULT_VOICE_ID || "21m00Tcm4TlvDq8ikWAM";
+  // Voice ID predefinito: priorità a voiceId passato -> DEFAULT_VOICE_ID da .env -> Voce di sistema Alice (Italiana)
+  const targetVoiceId = voiceId || process.env.DEFAULT_VOICE_ID || "Xb7hH8MSLrq25POB3837";
 
   try {
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${targetVoiceId}`, {
@@ -19,7 +20,7 @@ export async function generateVoiceSpeech(text: string, voiceId?: string): Promi
       },
       body: JSON.stringify({
         text: text,
-        model_id: "eleven_flash_v2_5",
+        model_id: "eleven_flash_v2_5", // Modello Flash velocissimo e interamente compatibile con i piani gratuiti
         voice_settings: {
           stability: 0.5,
           similarity_boost: 0.75
@@ -28,7 +29,16 @@ export async function generateVoiceSpeech(text: string, voiceId?: string): Promi
     });
 
     if (!response.ok) {
-      console.error("Errore ElevenLabs API:", await response.text());
+      const errorText = await response.text();
+      console.error("Errore ElevenLabs API:", errorText);
+
+      // Fallback automatico: se la voce specificata fallisce (es. blocco su voce personalizzata),
+      // ritenta immediatamente con la voce di sistema globale di default ("21m00Tcm4TlvDq8ikWAM")
+      if (targetVoiceId !== "21m00Tcm4TlvDq8ikWAM") {
+        console.log("Tentativo di ripiego con la voce di sistema predefinita...");
+        return generateVoiceSpeech(text, "21m00Tcm4TlvDq8ikWAM");
+      }
+
       return null;
     }
 
