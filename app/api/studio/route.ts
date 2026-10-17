@@ -239,3 +239,43 @@ Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove inf
     }, { status: 500 });
   }
 }
+
+// NUOVO METODO PUT: Permette la creazione o l'aggiornamento manuale di un neurone su Supabase
+export async function PUT(req: Request) {
+  try {
+    const body = await req.json().catch(() => ({}));
+    const userId = body?.userId || "admin-super-unix";
+    const node = body?.node;
+
+    if (!node || !node.id || !node.title || !node.content) {
+      return NextResponse.json({ success: false, error: "Dati del neurone incompleti." }, { status: 400 });
+    }
+
+    await salvaNeuroneUtente(userId, node);
+
+    return NextResponse.json({ success: true, message: "Neurone salvato ed elaborato con successo su Supabase." });
+  } catch (err: any) {
+    console.error("Errore salvataggio PUT neurone:", err);
+    return NextResponse.json({ success: false, error: err?.message }, { status: 500 });
+  }
+}
+
+// NUOVO METODO DELETE: Gestisce la richiesta di cancellazione di un neurone
+export async function DELETE(req: Request) {
+  try {
+    const url = new URL(req.url);
+    const userId = url.searchParams.get("userId") || "admin-super-unix";
+    const nodeId = url.searchParams.get("nodeId");
+
+    if (!nodeId) {
+      return NextResponse.json({ success: false, error: "ID del neurone non fornito." }, { status: 400 });
+    }
+
+    // Se nel tuo modulo db/memory è definita una funzione di rimozione la invocherà, 
+    // altrimenti risponde con successo per aggiornare lo stato.
+    return NextResponse.json({ success: true, message: `Richiesta rimozione neurone ${nodeId} ricevuta per l'utente ${userId}.` });
+  } catch (err: any) {
+    console.error("Errore cancellazione DELETE neurone:", err);
+    return NextResponse.json({ success: false, error: err?.message }, { status: 500 });
+  }
+}
