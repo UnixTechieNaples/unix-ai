@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import NeuralInspectorPanel, { NeuralMemoryNode } from "@/components/NeuralInspectorPanel";
 
 export default function StudioDashboard() {
-  // Autenticazione automatica e trasparente per il Super Admin
   const [user, setUser] = useState<{ id: string; email: string; role: string } | null>({
     id: "admin-super-unix",
     email: "unix.unix@gmail.com",
@@ -12,8 +11,9 @@ export default function StudioDashboard() {
   });
 
   const [prompt, setPrompt] = useState("");
-  const [messages, setMessages] = useState<Array<{ role: string; content: string; file?: { name: string; size: string } }>>([
-    { role: "unix", content: "Unix-AI Pro Studio online. Connessione neurale stabilita e sincronizzata per unix.unix@gmail.com." }
+  // Aggiungiamo il campo opzionale `audio` in ciascun messaggio per poterlo ririverizzare con un pulsante dedicato
+  const [messages, setMessages] = useState<Array<{ role: string; content: string; file?: { name: string; size: string }; audio?: string | null }>>([
+    { role: "unix", content: "Unix-AI Pro Studio online. Connessione neurale stabilita e sincronizzata per unix.unix@gmail.com.", audio: null }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -22,7 +22,6 @@ export default function StudioDashboard() {
 
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Memoria Neuroni iniziali di fallback
   const [neuralNodes, setNeuralNodes] = useState<NeuralMemoryNode[]>([
     {
       id: "1",
@@ -40,7 +39,6 @@ export default function StudioDashboard() {
     }
   ]);
 
-  // Caricamento automatico dei neuroni persistenti dal database all'avvio
   useEffect(() => {
     async function loadPersistentNodes() {
       try {
@@ -137,12 +135,14 @@ export default function StudioDashboard() {
       setIsSpeaking(false);
       currentAudioRef.current = null;
     };
-    audio.onerror = () => {
+    audio.onerror = (e) => {
+      console.error("Errore riproduzione audio HTML5:", e);
       setIsSpeaking(false);
       currentAudioRef.current = null;
     };
 
-    audio.play().catch(() => {
+    audio.play().catch((err) => {
+      console.warn("Autoplay bloccato dal browser. Clicca sul pulsante audio per ascoltare.", err);
       setIsSpeaking(false);
       currentAudioRef.current = null;
     });
@@ -191,9 +191,15 @@ export default function StudioDashboard() {
       const replyContent = data.reply || data.response || data.text;
 
       if (replyContent) {
-        setMessages((prev) => [...prev, { role: "unix", content: replyContent }]);
+        setMessages((prev) => [
+          ...prev, 
+          { 
+            role: "unix", 
+            content: replyContent, 
+            audio: data.audio || null 
+          }
+        ]);
         
-        // Auto-aggiunta dei nuovi neuroni generati dall'IA
         if (data.newNodes && Array.isArray(data.newNodes) && data.newNodes.length > 0) {
           data.newNodes.forEach((node: { title: string; content: string }) => {
             if (node.title && node.content) {
@@ -264,10 +270,8 @@ export default function StudioDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-cyan-400 font-mono flex flex-col p-4 md:p-6 relative overflow-hidden">
-      {/* Sfondo Cyberpunk */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-30 pointer-events-none" />
 
-      {/* Header HUD */}
       <header className="flex flex-col md:flex-row justify-between items-center border-b border-cyan-500/35 pb-4 z-10 backdrop-blur-md gap-2">
         <div>
           <h1 className="text-xl md:text-2xl font-bold tracking-wider text-cyan-300 drop-shadow-[0_0_10px_rgba(0,240,255,0.5)]">
@@ -294,7 +298,6 @@ export default function StudioDashboard() {
         </div>
       </header>
 
-      {/* Main Layout - Full Width per Neural Inspector e Chat */}
       <div className="flex flex-col gap-6 my-4 flex-1 z-10">
         <NeuralInspectorPanel
           nodes={neuralNodes}
@@ -318,8 +321,18 @@ export default function StudioDashboard() {
                     : "border-cyan-500/30 bg-cyan-950/20 text-cyan-200 mr-auto max-w-[85%]"
                 }`}
               >
-                <div className="text-[10px] opacity-60 mb-1">
-                  {m.role === "user" ? "> USER_INPUT" : "> Unix_RESPONSE"}
+                <div className="text-[10px] opacity-60 mb-1 flex justify-between items-center">
+                  <span>{m.role === "user" ? "> USER_INPUT" : "> Unix_RESPONSE"}</span>
+                  {/* Pulsante manuale per ascoltare la voce di questo messaggio specifico */}
+                  {m.audio && (
+                    <button
+                      type="button"
+                      onClick={() => playAudioStream(m.audio!)}
+                      className="text-[10px] bg-cyan-500/20 border border-cyan-400 text-cyan-300 px-2 py-0.5 rounded hover:bg-cyan-500/40 transition flex items-center gap-1 font-bold"
+                    >
+                      🔊 Ascolta Voce
+                    </button>
+                  )}
                 </div>
                 {m.file && (
                   <div className="mb-2 p-2 bg-slate-950/60 border border-cyan-500/30 rounded flex items-center gap-2 text-xs text-cyan-300">
