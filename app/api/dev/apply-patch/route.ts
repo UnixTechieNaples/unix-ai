@@ -40,8 +40,8 @@ export async function POST(req: Request) {
         continue;
       }
 
-      // Risoluzione percorso file locale (es. app/page.tsx, components/CyberCore3D.tsx, ecc.)
-      const fullPath = path.join(process.cwd(), relativePath);
+      // Risoluzione percorso file locale con turbopackIgnore per ottimizzare la build su Vercel
+      const fullPath = path.join(/*turbopackIgnore: true*/ process.cwd(), relativePath);
 
       // Assicura che la cartella di destinazione esista
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
