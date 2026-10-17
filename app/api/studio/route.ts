@@ -41,6 +41,7 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const userId = url.searchParams.get("userId") || "admin-super-unix";
     
+    // Recupera direttamente dal database Supabase i neuroni salvati per l'utente
     const neuroniDB = await getNeuroniUtente(userId);
     return NextResponse.json({ success: true, nodes: neuroniDB });
   } catch (err: any) {
@@ -76,6 +77,7 @@ export async function POST(req: Request) {
     }
 
     let replyText = "";
+    let savedNewNodes: Array<{ id: string; title: string; content: string; type: string; timestamp: string }> = [];
 
     const lowerPrompt = userPrompt.toLowerCase();
     if (
@@ -136,7 +138,7 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
 1. Non presentarti mai come Jarvis, presentati semplicemente come un assistente o un collega.
 2. È SEVERAMENTE VIETATO l'uso di tabelle, elenchi puntati o elenchi numerati di qualsiasi tipo.
 3. Se sono presenti "DATI AGGIORNATI ESTRATTI DALLA RETE INTERNET", DEVI utilizzarli obbligatoriamente per rispondere, integrandoli in modo fluido e naturale.
-4. Rispondi SEMPRE restituendo un oggetto JSON valido nel seguente formato esatto (senza blocchi di codice markdown aggiuntivi attorno al JSON se non strettamente necessario, oppure pulito):
+4. Rispondi SEMPRE restituendo un oggetto JSON valido nel seguente formato esatto:
 {
   "reply": "Il tuo testo discorsivo, fluido e naturale in lingua italiana, che si conclude sempre con un rilancio o una domanda.",
   "newNodes": [
@@ -198,28 +200,32 @@ Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove inf
 
       replyText = parsedResponse.reply || rawContent;
 
+      // Salvataggio dei neuroni sia su Supabase sia nell'array da restituire al frontend
       if (parsedResponse.newNodes && Array.isArray(parsedResponse.newNodes)) {
         for (const node of parsedResponse.newNodes) {
           if (node.title && node.content) {
-            await salvaNeuroneUtente(userId, {
+            const createdNode = {
               id: Date.now().toString() + Math.random().toString(36).substr(2, 4),
               title: node.title,
               content: node.content,
               type: "memory",
               timestamp: new Date().toLocaleTimeString("it-IT")
-            });
+            };
+
+            await salvaNeuroneUtente(userId, createdNode);
+            savedNewNodes.push(createdNode);
           }
         }
       }
     }
 
-    // Generazione SEMPRE attiva dell'audio vocale tramite ElevenLabs per qualsiasi risposta
+    // Generazione dell'audio vocale tramite ElevenLabs per la risposta
     const audioData = await generateVoiceSpeech(replyText);
 
     return NextResponse.json({
       success: true,
       reply: replyText,
-      newNodes: [],
+      newNodes: savedNewNodes, // Restituisce i neuroni reali generati e salvati nel DB
       audio: audioData,
       patches: null
     });
