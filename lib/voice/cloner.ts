@@ -19,12 +19,10 @@ export async function generateVoiceSpeech(text: string, voiceId?: string): Promi
       },
       body: JSON.stringify({
         text: text,
-        model_id: "eleven_multilingual_v2",
+        model_id: "eleven_flash_v2_5", // Sostituito con il modello Flash compatibile con le API gratuite
         voice_settings: {
           stability: 0.5,
-          similarity_boost: 0.75,
-          style: 0.2,
-          use_speaker_boost: true
+          similarity_boost: 0.75
         }
       })
     });
