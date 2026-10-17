@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import { salvaUtente, getUtenti, checkIsSuperAdmin, getActiveUsersReport, salvaNeuroneUtente, getNeuroniUtente } from "@/lib/db/memory";
+import { generateVoiceSpeech } from "@/lib/voice/cloner";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -89,6 +90,7 @@ export async function POST(req: Request) {
           success: true,
           reply: "Accesso negato: questa funzione di monitoraggio è riservata esclusivamente al Super Admin.",
           newNodes: [],
+          audio: null,
           patches: null
         });
       } else {
@@ -98,6 +100,7 @@ export async function POST(req: Request) {
           success: true,
           reply: `Report accessi e utenti registrati nel database:\n\n${formattedReport}`,
           newNodes: [],
+          audio: null,
           patches: null
         });
       }
@@ -220,10 +223,15 @@ Nota: Il campo "newNodes" può essere un array vuoto [] se non ci sono nuove inf
       }
     }
 
+    // Generazione dell'audio vocale tramite ElevenLabs (se la chiave API è configurata)
+    const replyText = parsedResponse.reply || rawContent;
+    const audioData = await generateVoiceSpeech(replyText);
+
     return NextResponse.json({
       success: true,
-      reply: parsedResponse.reply || rawContent,
+      reply: replyText,
       newNodes: parsedResponse.newNodes || [],
+      audio: audioData,
       patches: null
     });
 
