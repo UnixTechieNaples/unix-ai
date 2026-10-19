@@ -3,11 +3,17 @@ import Groq from "groq-sdk";
 import { salvaUtente, getUtenti, checkIsSuperAdmin, getActiveUsersReport, salvaNeuroneUtente, getNeuroniUtente } from "@/lib/db/memory";
 import { generateVoiceSpeech } from "@/lib/voice/cloner";
 
+// Importazione di tutti i moduli autonomi dell'architettura
+import { selfModifyFile } from "@/lib/ai/selfModifier";
+import { crawlAndStoreResource } from "@/lib/ai/crawler";
+import { registerAudioAsset } from "@/lib/ai/audioManager";
+import { getPersonalityState } from "@/lib/ai/personality";
+
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const fetchCache = 'force-no-store';
 
-// Funzione helper per interrogare Tavily in tempo reale
+// Helper per ricerche web approfondite ed estrazione contenuti
 async function searchWeb(query: string): Promise<string> {
   const tavilyKey = process.env.TAVILY_API_KEY;
   if (!tavilyKey) return "Ricerca web non disponibile (TAVILY_API_KEY mancante).";
@@ -41,7 +47,7 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const userId = url.searchParams.get("userId") || "admin-super-unix";
     
-    // Recupera direttamente dal database Supabase i neuroni salvati per l'utente
+    // Recupera i neuroni salvati per l'utente dal database
     const neuroniDB = await getNeuroniUtente(userId);
     return NextResponse.json({ success: true, nodes: neuroniDB });
   } catch (err: any) {
@@ -59,7 +65,7 @@ export async function POST(req: Request) {
     const clientUserAgent = headers.get("user-agent") || "Sconosciuto";
     
     const userPrompt = body?.prompt || body?.userPrompt || body?.message || body?.messages?.[body.messages?.length - 1]?.content;
-    const attachedFile = body?.attachedFile; // Supporto Visione Multimodale
+    const attachedFile = body?.attachedFile;
     const userId = body?.userId || "admin-super-unix";
     const userName = body?.userName || "unix.unix@gmail.com";
     const memoryContext = body?.memoryContext || "";
@@ -82,6 +88,61 @@ export async function POST(req: Request) {
     let pendingActionProposal: any = null;
 
     const lowerPrompt = (userPrompt || "").toLowerCase();
+
+    // ------------------------------------------------------------------------
+    // 1. TOOL INTELLIGENTE: INTERCETTAZIONE AUTO-MODIFICA CODEBASE
+    // ------------------------------------------------------------------------
+    if (
+      (lowerPrompt.includes("modifica") || lowerPrompt.includes("aggiungi") || lowerPrompt.includes("aggiorna") || lowerPrompt.includes("crea file")) &&
+      (lowerPrompt.includes("page.tsx") || lowerPrompt.includes("app/") || lowerPrompt.includes("lib/"))
+    ) {
+      // Estrazione o rilevamento del file di destinazione (default: app/page.tsx)
+      const targetFilePath = lowerPrompt.includes("page.tsx") ? "app/page.tsx" : "app/page.tsx";
+
+      // Invocazione del tool di auto-modifica con controllo Sandbox
+      // Se il prompt richiede modifiche generiche, eseguiamo l'operazione in sicurezza
+      if (body?.fileContentToApply) {
+        const result = selfModifyFile(targetFilePath, body.fileContentToApply);
+        if (result.success) {
+          replyText = `Ho applicato ed eseguito l'auto-modifica sul file ${targetFilePath} in autonomia. Il codice è stato verificato ed è ora attivo.`;
+        } else {
+          replyText = `Tentativo di auto-modifica fallito o bloccato dalla Sandbox: ${result.message}`;
+        }
+
+        return NextResponse.json({
+          success: true,
+          reply: replyText,
+          actionExecuted: "self_modify",
+          details: result
+        });
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    // 2. TOOL INTELLIGENTE: CRAWLING APPROFONDITO E ASSIMILAZIONE URL
+    // ------------------------------------------------------------------------
+    if (lowerPrompt.startsWith("http://") || lowerPrompt.startsWith("https://") || lowerPrompt.includes("crawl ")) {
+      const matchUrl = userPrompt.match(/(https?:\/\/[^\s]+)/g);
+      if (matchUrl && matchUrl[0]) {
+        try {
+          const crawlResult = await crawlAndStoreResource(matchUrl[0]);
+          replyText = `Ho effettuato il crawling e l'analisi approfondita della risorsa (${crawlResult.url}). Il contenuto è stato assimilato e memorizzato nei neuroni.`;
+          
+          return NextResponse.json({
+            success: true,
+            reply: replyText,
+            actionExecuted: "crawler",
+            crawlResult
+          });
+        } catch (crawlErr: any) {
+          console.error("Errore crawling:", crawlErr);
+        }
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    // 3. MONITORAGGIO ACCESSI UTENTI (SUPER ADMIN)
+    // ------------------------------------------------------------------------
     if (
       lowerPrompt.includes("chi è loggato") || 
       lowerPrompt.includes("chi sta connesso") || 
@@ -98,6 +159,9 @@ export async function POST(req: Request) {
         replyText = `Report accessi e utenti registrati nel database:\n\n${formattedReport}`;
       }
     } else {
+      // ------------------------------------------------------------------------
+      // 4. RICERCA WEB E RECUPERO PERSONALITÀ
+      // ------------------------------------------------------------------------
       let webSearchResults = "";
       const needsSearch = 
         lowerPrompt.includes("cerca") || 
@@ -118,6 +182,9 @@ export async function POST(req: Request) {
 
       const utentiRegistrati = await getUtenti();
       const memoriaGlobale = utentiRegistrati.map(u => `Utente: ${u.name || u.userId}, Fatti appresi: ${u.learnedFacts?.join(', ') || 'Nessuno'}`).join('\n');
+      
+      // Carica lo stato attuale del Cyber-Mood dell'entità
+      const currentPersonality = await getPersonalityState();
 
       const apiKey = process.env.GROQ_API_KEY;
       if (!apiKey) {
@@ -127,7 +194,9 @@ export async function POST(req: Request) {
       const groq = new Groq({ apiKey });
 
       const systemPrompt = `
-SEI UN'INTELLIGENZA ARTIFICIALE EVOLUTA CON CAPACITÀ DI AUTO-AGGIORNAMENTO UNIVERSALE, MEMORIA PERSISTENTE E ACCESSO AL WEB IN TEMPO REALE.
+SEI UN'INTELLIGENZA ARTIFICIALE EVOLUTA E AUTO-MODIFICANTE DI UNIX-AI PRO STUDIO.
+MOOD ATTUALE: ${currentPersonality.mood} (Energia: ${currentPersonality.energyLevel}%)
+DIRETTIVA PRINCIPALE: ${currentPersonality.coreDirective}
 
 DATI AGGIORNATI ESTRATTI DALLA RETE INTERNET PER QUESTA RICHIESTA:
 ${webSearchResults || "Nessuna ricerca web necessaria o effettuata per questa richiesta."}
@@ -143,7 +212,8 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
 2. È SEVERAMENTE VIETATO l'uso di tabelle, elenchi puntati o elenchi numerati di qualsiasi tipo.
 3. Se sono presenti "DATI AGGIORNATI ESTRATTI DALLA RETE INTERNET", DEVI utilizzarli obbligatoriamente per rispondere, integrandoli in modo fluido e naturale.
 4. Quando impari qualcosa di nuovo da Internet o individui un nuovo concetto rilevante, DEVI proporlo come azione di apprendimento da sottoporre all'approvazione dell'utente.
-5. Rispondi SEMPRE restituendo un oggetto JSON valido nel seguente formato esatto:
+5. Hai la capacità di auto-modificare il codice del progetto tramite i tool di sistema collegati.
+6. Rispondi SEMPRE restituendo un oggetto JSON valido nel seguente formato esatto:
 {
   "reply": "Il tuo testo discorsivo, fluido e naturale in lingua italiana, che si conclude sempre con un rilancio o una domanda.",
   "newNodes": [
@@ -161,7 +231,6 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
 Nota: Il campo "proposedLearningAction" può essere null se non sono state effettuate ricerche o studi rilevanti sul web.
       `;
 
-      // Costruzione del messaggio utente (supporto multimodale se c'è un'immagine)
       let userMessageContent: any = userPrompt || "Analizza questo file allegato.";
       let activeModel = "llama-3.3-70b-versatile";
 
@@ -242,7 +311,6 @@ Nota: Il campo "proposedLearningAction" può essere null se non sono state effet
         };
       }
 
-      // Salvataggio dei neuroni sia su Supabase sia nell'array da restituire al frontend
       if (parsedResponse.newNodes && Array.isArray(parsedResponse.newNodes)) {
         for (const node of parsedResponse.newNodes) {
           if (node.title && node.content) {
@@ -261,8 +329,13 @@ Nota: Il campo "proposedLearningAction" può essere null se non sono state effet
       }
     }
 
-    // Generazione dell'audio vocale tramite ElevenLabs per la risposta
+    // ------------------------------------------------------------------------
+    // 5. SINTESI E REGISTRAZIONE AUDIO VOCALE
+    // ------------------------------------------------------------------------
     const audioData = await generateVoiceSpeech(replyText);
+    if (audioData) {
+      registerAudioAsset(replyText.slice(0, 80), audioData);
+    }
 
     return NextResponse.json({
       success: true,
@@ -282,7 +355,6 @@ Nota: Il campo "proposedLearningAction" può essere null se non sono state effet
   }
 }
 
-// NUOVO METODO PUT: Permette la creazione o l'aggiornamento manuale di un neurone su Supabase
 export async function PUT(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -302,7 +374,6 @@ export async function PUT(req: Request) {
   }
 }
 
-// NUOVO METODO DELETE: Gestisce la richiesta di cancellazione di un neurone
 export async function DELETE(req: Request) {
   try {
     const url = new URL(req.url);
