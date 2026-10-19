@@ -106,7 +106,6 @@ export async function POST(req: Request) {
           // Se viene chiesto di aggiungere il tasto vocale o simili e non è ancora presente
           if ((lowerPrompt.includes("voce") || lowerPrompt.includes("parla") || lowerPrompt.includes("tasto")) && !currentCode.includes("SpeechRecognition")) {
             
-            // Inseriamo in autonomia la logica di SpeechRecognition e il pulsante nel codice esistente di app/page.tsx
             const speechLogicToAdd = `
   // Funzione auto-aggiunta dall'Entità per il riconoscimento vocale nativo
   const [isListening, setIsListening] = React.useState(false);
@@ -139,14 +138,12 @@ export async function POST(req: Request) {
   };
 `;
 
-            // Cerchiamo un punto sicuro in cui iniettare la logica (es. prima del primo return o all'inizio del componente)
             if (currentCode.includes("export default function StudioDashboard")) {
               currentCode = currentCode.replace(
                 "export default function StudioDashboard() {",
                 `export default function StudioDashboard() {\n${speechLogicToAdd}`
               );
 
-              // Aggiungiamo anche il pulsante visivo nel form se esiste la barra di input
               if (currentCode.includes("type=\"text\"") && !currentCode.includes("🎤 Parla")) {
                 currentCode = currentCode.replace(
                   /<form /g,
@@ -236,7 +233,7 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
     `;
 
     let userMessageContent: any = userPrompt || "Analizza questo file allegato.";
-    let activeModel = "llama-3.3-70b-versatile";
+    let activeModel = "openai/gpt-oss-20b"; // Impostato sul modello originale richiesto
 
     if (attachedFile && attachedFile.type && attachedFile.type.startsWith('image/')) {
       activeModel = "llama-3.2-11b-vision-preview";
@@ -246,19 +243,35 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
       ];
     }
 
-    const completion = await groq.chat.completions.create({
-      model: activeModel,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessageContent }
-      ],
-      temperature: 0.7,
-      max_tokens: 2048,
-    });
+    const modelsToTry = [activeModel, "llama3-70b-8192"];
+    let rawContent = null;
+    let lastError = "";
 
-    const rawContent = completion.choices[0]?.message?.content;
+    for (const modelName of modelsToTry) {
+      try {
+        const completion = await groq.chat.completions.create({
+          model: modelName,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessageContent }
+          ],
+          temperature: 0.7,
+          max_tokens: 2048,
+        });
+
+        rawContent = completion.choices[0]?.message?.content;
+        if (rawContent) break;
+      } catch (err: any) {
+        lastError = err?.message || "Errore sconosciuto";
+      }
+    }
+
     if (!rawContent) {
-      return NextResponse.json({ success: false, reply: "Errore nella generazione della risposta." }, { status: 500 });
+      return NextResponse.json({
+        success: false,
+        reply: `Errore Groq Model: ${lastError}`,
+        error: lastError
+      }, { status: 500 });
     }
 
     let parsedResponse;
