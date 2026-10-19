@@ -18,7 +18,7 @@ export default function StudioDashboard() {
   });
 
   const [activeTab, setActiveTab] = useState<"chat" | "webhooks" | "report">("chat");
-  const [selectedModel, setSelectedModel] = useState("llama-3.3-70b-versatile");
+  const [selectedModel, setSelectedModel] = useState("openai/gpt-oss-20b");
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   const [branchViewerNode, setBranchViewerNode] = useState<{ id: string; title: string } | null>(null);
 
@@ -42,6 +42,36 @@ export default function StudioDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
+  // Riconoscimento Vocale Nativo integrato
+  const [isListening, setIsListening] = useState(false);
+  const [recognitionInstance, setRecognitionInstance] = useState<any>(null);
+
+  const toggleListening = () => {
+    if (typeof window === "undefined") return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Il browser non supporta il riconoscimento vocale.");
+      return;
+    }
+    if (isListening) {
+      if (recognitionInstance) recognitionInstance.stop();
+      setIsListening(false);
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "it-IT";
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event: any) => {
+      const speechText = event.results[0][0].transcript;
+      setPrompt((prev: string) => (prev ? prev + " " + speechText : speechText));
+      setIsListening(false);
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    setRecognitionInstance(recognition);
+    recognition.start();
+  };
+
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const [neuralNodes, setNeuralNodes] = useState<NeuralMemoryNode[]>([
@@ -58,14 +88,12 @@ export default function StudioDashboard() {
   useEffect(() => {
     async function loadStudioData() {
       try {
-        // Carica la personalità / Cyber-Mood
         const persRes = await fetch("/api/personality");
         const persData = await persRes.json();
         if (persData.success && persData.personality) {
           setPersonality(persData.personality);
         }
 
-        // Carica i neuroni di memoria
         const nodeRes = await fetch(`/api/studio?userId=${user?.id || "admin-super-unix"}`);
         const nodeData = await nodeRes.json();
         if (nodeData.success && nodeData.nodes && nodeData.nodes.length > 0) {
@@ -319,6 +347,21 @@ export default function StudioDashboard() {
                   placeholder="Scrivi un comando o chiedi informazioni..."
                   className="flex-1 bg-slate-950/80 border border-cyan-500/40 rounded-lg px-4 py-2.5 text-sm text-cyan-100 focus:outline-none focus:border-cyan-400"
                 />
+                
+                {/* Pulsante vocale integrato */}
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  className={`px-3.5 py-2.5 rounded-lg border text-xs font-bold transition flex items-center gap-1.5 ${
+                    isListening 
+                      ? "bg-red-950/60 border-red-500 text-red-300 animate-pulse" 
+                      : "bg-slate-900 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/20"
+                  }`}
+                  title="Dettatura Vocale"
+                >
+                  {isListening ? "🔴 In ascolto..." : "🎤 Parla"}
+                </button>
+
                 <button type="submit" disabled={isLoading} className="bg-cyan-600/30 border border-cyan-400 text-cyan-300 hover:bg-cyan-500/30 px-5 py-2.5 rounded-lg text-sm font-semibold transition disabled:opacity-50">
                   INVIA
                 </button>
