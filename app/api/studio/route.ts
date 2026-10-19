@@ -4,7 +4,7 @@ import fs from "fs";
 import path from "path";
 import { salvaUtente, getUtenti, checkIsSuperAdmin, getActiveUsersReport, salvaNeuroneUtente, getNeuroniUtente } from "@/lib/db/memory";
 import { generateVoiceSpeech } from "@/lib/voice/cloner";
-import { selfModifyFile } from "@/lib/ai/selfModifier";
+import { commitFileToGitHub } from "@/lib/ai/githubCommitter";
 import { crawlAndStoreResource } from "@/lib/ai/crawler";
 import { registerAudioAsset } from "@/lib/ai/audioManager";
 import { getPersonalityState } from "@/lib/ai/personality";
@@ -154,14 +154,22 @@ export async function POST(req: Request) {
                 );
               }
 
-              const modResult = selfModifyFile("app/page.tsx", currentCode);
-              if (modResult.success) {
-                replyText = "Ho analizzato la mia interfaccia, ho rilevato l'assenza del modulo vocale e ho provveduto ad auto-modificare il file app/page.tsx aggiungendo il pulsante e la logica di ascolto in autonomia. Il sistema è ora aggiornato.";
+              // Eseguiamo il commit diretto tramite GitHub API per persistenza reale su Vercel
+              const commitResult = await commitFileToGitHub(
+                "app/page.tsx",
+                currentCode,
+                "feat: auto-aggiunta del modulo vocale e pulsante interattivo da parte dell'Entità"
+              );
+
+              if (commitResult.success) {
+                replyText = "Ho analizzato la mia interfaccia, ho rilevato l'assenza del modulo vocale e ho provveduto ad auto-modificare il codice e a fare il commit diretto su GitHub in autonomia. Il sistema si sta aggiornando.";
                 return NextResponse.json({
                   success: true,
                   reply: replyText,
-                  actionExecuted: "self_modify_success"
+                  actionExecuted: "github_self_commit_success"
                 });
+              } else {
+                replyText = `Ho tentato l'auto-modifica ma c'è stato un intoppo con GitHub: ${commitResult.message}.`;
               }
             }
           }
@@ -233,7 +241,7 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
     `;
 
     let userMessageContent: any = userPrompt || "Analizza questo file allegato.";
-    let activeModel = "openai/gpt-oss-20b"; // Impostato sul modello originale richiesto
+    let activeModel = "openai/gpt-oss-20b";
 
     if (attachedFile && attachedFile.type && attachedFile.type.startsWith('image/')) {
       activeModel = "llama-3.2-11b-vision-preview";
