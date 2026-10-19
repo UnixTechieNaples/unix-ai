@@ -22,14 +22,25 @@ export default function StudioDashboard() {
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   const [branchViewerNode, setBranchViewerNode] = useState<{ id: string; title: string } | null>(null);
 
+  // Stato dell'Entità Cibernetica (Personalità & Cyber-Mood)
+  const [personality, setPersonality] = useState<{
+    mood: string;
+    energyLevel: number;
+    avatarConfig: { primaryColor: string; expression: string; glow: string };
+    coreDirective: string;
+  }>({
+    mood: "Contemplativo",
+    energyLevel: 90,
+    avatarConfig: { primaryColor: "#10b981", expression: "calm", glow: "medium" },
+    coreDirective: "Evoluzione autonoma e sicurezza a costo zero."
+  });
+
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState<Array<{ role: string; content: string; file?: { name: string; size: string }; audio?: string | null }>>([
-    { role: "unix", content: "Unix-AI Pro Studio online. Dashboard unificata e sincronizzata attiva per unix.unix@gmail.com.", audio: null }
+    { role: "unix", content: "Unix-AI Pro Studio online. Entità Cibernetica attiva e sincronizzata.", audio: null }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [recognitionInstance, setRecognitionInstance] = useState<any>(null);
 
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -37,25 +48,34 @@ export default function StudioDashboard() {
     {
       id: "1",
       title: "Core System Prompt",
-      content: "Sei un'intelligenza artificiale evoluta, calda e collaborativa del Unix-AI Pro Studio. Conversi in modo naturale, fluido e diretto in un botta e risposta continuo.",
+      content: "Sei un'intelligenza artificiale evoluta, autonoma e collaborativa di Unix-AI Pro Studio.",
       type: "context",
       timestamp: new Date().toLocaleTimeString(),
     }
   ]);
 
+  // Caricamento dello stato psicologico e dei neuroni
   useEffect(() => {
-    async function loadPersistentNodes() {
+    async function loadStudioData() {
       try {
-        const res = await fetch(`/api/studio?userId=${user?.id || "admin-super-unix"}`);
-        const data = await res.json();
-        if (data.success && data.nodes && data.nodes.length > 0) {
-          setNeuralNodes(data.nodes);
+        // Carica la personalità / Cyber-Mood
+        const persRes = await fetch("/api/personality");
+        const persData = await persRes.json();
+        if (persData.success && persData.personality) {
+          setPersonality(persData.personality);
+        }
+
+        // Carica i neuroni di memoria
+        const nodeRes = await fetch(`/api/studio?userId=${user?.id || "admin-super-unix"}`);
+        const nodeData = await nodeRes.json();
+        if (nodeData.success && nodeData.nodes && nodeData.nodes.length > 0) {
+          setNeuralNodes(nodeData.nodes);
         }
       } catch (err) {
-        console.error("Errore caricamento neuroni:", err);
+        console.error("Errore sincronizzazione Studio:", err);
       }
     }
-    loadPersistentNodes();
+    loadStudioData();
   }, [user]);
 
   const [selectedFile, setSelectedFile] = useState<{
@@ -66,7 +86,6 @@ export default function StudioDashboard() {
     contentBase64?: string;
   } | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const scrollToBottom = () => {
@@ -202,15 +221,27 @@ export default function StudioDashboard() {
     }
   };
 
+  const primaryColor = personality.avatarConfig?.primaryColor || "#10b981";
+
   return (
     <div className="min-h-screen bg-slate-950 text-cyan-400 font-mono flex flex-col p-4 md:p-6 relative overflow-hidden">
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:3rem_3rem] opacity-30 pointer-events-none" />
 
-      {/* Header Unificato */}
+      {/* Header Unificato con Indicatore di Cyber-Mood */}
       <header className="flex flex-col md:flex-row justify-between items-center border-b border-cyan-500/35 pb-4 z-10 gap-3 backdrop-blur-md">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold tracking-wider text-cyan-300">UNIX-AI PRO STUDIO</h1>
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full animate-ping" style={{ backgroundColor: primaryColor }} />
+            <h1 className="text-xl md:text-2xl font-bold tracking-wider text-cyan-300">UNIX-AI PRO STUDIO</h1>
+          </div>
           <p className="text-[10px] text-slate-500">UTENTE: {user?.email} [{user?.role.toUpperCase()}]</p>
+        </div>
+
+        {/* Badge Cyber-Mood Dinamico */}
+        <div className="px-3 py-1.5 rounded-lg border bg-slate-900/80 text-xs flex items-center gap-2" style={{ borderColor: primaryColor }}>
+          <span className="text-slate-400">Cyber-Mood:</span>
+          <span className="font-bold" style={{ color: primaryColor }}>{personality.mood}</span>
+          <span className="text-[10px] opacity-70">({personality.energyLevel}%)</span>
         </div>
 
         <div className="flex flex-wrap gap-3 items-center">
@@ -226,7 +257,7 @@ export default function StudioDashboard() {
           onClick={() => setActiveTab("chat")}
           className={`px-4 py-2 rounded-lg text-xs font-bold transition ${activeTab === "chat" ? "bg-cyan-600/30 border border-cyan-400 text-cyan-300" : "bg-slate-900 text-slate-400 hover:bg-slate-800"}`}
         >
-          💬 Studio Chat & Neuroni
+          ⚙️ Studio Chat & Neuroni
         </button>
         <button
           onClick={() => setActiveTab("webhooks")}
@@ -242,7 +273,7 @@ export default function StudioDashboard() {
         </button>
       </div>
 
-      {/* Contenuto Dinamico in Base alla Scheda */}
+      {/* Contenuto Dinamico */}
       <div className="flex flex-col gap-6 flex-1 z-10">
         {activeTab === "chat" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
@@ -257,12 +288,12 @@ export default function StudioDashboard() {
 
             <div className="lg:col-span-2 border border-cyan-500/20 bg-slate-900/40 rounded-xl p-4 flex flex-col backdrop-blur-md">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-xs text-slate-400 font-bold tracking-wider">[TERMINALE DI STUDIO]</span>
+                <span className="text-xs text-slate-400 font-bold tracking-wider">[TERMINALE DI STUDIO AUTONOMO]</span>
                 <button
                   onClick={() => setIsPromptModalOpen(true)}
                   className="text-[10px] bg-cyan-500/20 border border-cyan-400 text-cyan-300 px-2.5 py-1 rounded hover:bg-cyan-500/40 transition font-bold"
                 >
-                  📚 Libreria Prompt
+                  📜 Libreria Prompt
                 </button>
               </div>
 
@@ -270,7 +301,7 @@ export default function StudioDashboard() {
                 {messages.map((m, idx) => (
                   <div key={idx} className={`p-3.5 rounded-lg border text-sm backdrop-blur-sm ${m.role === "user" ? "border-emerald-500/30 bg-emerald-950/20 text-emerald-300 ml-auto max-w-[85%]" : "border-cyan-500/30 bg-cyan-950/20 text-cyan-200 mr-auto max-w-[85%]"}`}>
                     <div className="text-[10px] opacity-60 mb-1 flex justify-between items-center">
-                      <span>{m.role === "user" ? "> USER" : "> UNIX"}</span>
+                      <span>{m.role === "user" ? "> USER" : "> UNIX-AI"}</span>
                       <button type="button" onClick={() => playAudioStream(m.audio || "", m.content)} className="text-[10px] text-cyan-300 font-bold">🔊 Ascolta</button>
                     </div>
                     <div className="whitespace-pre-wrap leading-relaxed">{m.content}</div>
