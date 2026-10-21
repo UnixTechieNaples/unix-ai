@@ -16,9 +16,9 @@ export async function GET(req: Request) {
 
     const groq = new Groq({ apiKey });
 
-    // L'IA riflette autonomamente su cosa analizzare o migliorare
+    // L'IA riflette autonomamente su cosa analizzare o migliorare con il modello aggiornato
     const completion = await groq.chat.completions.create({
-      model: "openai/gpt-oss-20b",
+      model: "llama-3.3-70b-versatile",
       messages: [
         {
           role: "system",
