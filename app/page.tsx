@@ -9,6 +9,7 @@ import WebhookMonitorPanel from "@/components/WebhookMonitorPanel";
 import OllamaStatusWidget from "@/components/OllamaStatusWidget";
 import MemoryBranchViewer from "@/components/MemoryBranchViewer";
 import ReportGeneratorPanel from "@/components/ReportGeneratorPanel";
+import FileExtractorWorkspace from "@/components/FileExtractorWorkspace";
 
 export default function StudioDashboard() {
   const [user, setUser] = useState<{ id: string; email: string; role: string } | null>({
@@ -17,7 +18,7 @@ export default function StudioDashboard() {
     role: "superadmin"
   });
 
-  const [activeTab, setActiveTab] = useState<"chat" | "webhooks" | "report">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "files" | "webhooks" | "report">("chat");
   const [selectedModel, setSelectedModel] = useState("openai/gpt-oss-20b");
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   const [branchViewerNode, setBranchViewerNode] = useState<{ id: string; title: string } | null>(null);
@@ -280,12 +281,18 @@ export default function StudioDashboard() {
       </header>
 
       {/* Navigazione a Schede */}
-      <div className="flex gap-2 my-4 z-10 border-b border-cyan-500/20 pb-2">
+      <div className="flex flex-wrap gap-2 my-4 z-10 border-b border-cyan-500/20 pb-2">
         <button
           onClick={() => setActiveTab("chat")}
           className={`px-4 py-2 rounded-lg text-xs font-bold transition ${activeTab === "chat" ? "bg-cyan-600/30 border border-cyan-400 text-cyan-300" : "bg-slate-900 text-slate-400 hover:bg-slate-800"}`}
         >
           ⚙️ Studio Chat & Neuroni
+        </button>
+        <button
+          onClick={() => setActiveTab("files")}
+          className={`px-4 py-2 rounded-lg text-xs font-bold transition ${activeTab === "files" ? "bg-cyan-600/30 border border-cyan-400 text-cyan-300" : "bg-slate-900 text-slate-400 hover:bg-slate-800"}`}
+        >
+          📦 Estrazione File & ZIP
         </button>
         <button
           onClick={() => setActiveTab("webhooks")}
@@ -367,6 +374,12 @@ export default function StudioDashboard() {
                 </button>
               </form>
             </div>
+          </div>
+        )}
+
+        {activeTab === "files" && (
+          <div className="flex flex-col gap-6">
+            <FileExtractorWorkspace />
           </div>
         )}
 
