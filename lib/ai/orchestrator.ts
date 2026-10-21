@@ -97,17 +97,18 @@ REGOLE TASSATIVE:
 3. Rispondi SEMPRE e SOLO con paragrafi di testo discorsivo, fluido e naturale in lingua italiana, completando sempre le frasi senza tagliarle.
     `;
 
-    // Costruiamo la lista dei modelli dando priorità a quello selezionato dall'utente
-    let modelCandidates = [...DEFAULT_MODEL_CANDIDATES];
+    // Mappatura sicura e pulita dei modelli per evitare errori di decommissione su Groq
+    let selectedCleanModel = "llama-3.3-70b-versatile";
     if (model) {
-      // Puliamo il nome del modello se contiene prefissi particolari
-      const cleanModel = model.includes("/") ? model.split("/")[1] : model;
-      if (cleanModel && !modelCandidates.includes(cleanModel)) {
-        modelCandidates = [cleanModel, ...modelCandidates];
-      } else if (cleanModel) {
-        modelCandidates = [cleanModel, ...modelCandidates.filter(m => m !== cleanModel)];
+      const lowerModel = model.toLowerCase();
+      if (lowerModel.includes("8b")) {
+        selectedCleanModel = "llama-3.1-8b-instant";
+      } else if (lowerModel.includes("70b") || lowerModel.includes("versatile") || lowerModel.includes("gpt")) {
+        selectedCleanModel = "llama-3.3-70b-versatile";
       }
     }
+
+    const modelCandidates = Array.from(new Set([selectedCleanModel, ...DEFAULT_MODEL_CANDIDATES]));
 
     let replyText: string | null = null;
     let lastError = "";
