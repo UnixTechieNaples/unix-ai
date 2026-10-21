@@ -2,8 +2,7 @@ import Groq from "groq-sdk";
 import { salvaUtente, getUtenti, checkIsSuperAdmin, getActiveUsersReport } from "@/lib/db/memory";
 
 const DEFAULT_MODEL_CANDIDATES = [
-  "llama-3.3-70b-versatile",
-  "llama-3.1-8b-instant"
+  "llama-3.3-70b-versatile"
 ];
 
 export async function processStudioCommand({ userPrompt, memoryContext, userId, userName, model }: { userPrompt: string; memoryContext?: string; userId?: string; userName?: string; model?: string }) {
@@ -97,19 +96,8 @@ REGOLE TASSATIVE:
 3. Rispondi SEMPRE e SOLO con paragrafi di testo discorsivo, fluido e naturale in lingua italiana, completando sempre le frasi senza tagliarle.
     `;
 
-    // Mappatura e bonifica forzata per neutralizzare qualsiasi modello obsoleto in arrivo
-    let selectedCleanModel = "llama-3.3-70b-versatile";
-    if (model) {
-      const lowerModel = model.toLowerCase();
-      if (lowerModel.includes("8b")) {
-        selectedCleanModel = "llama-3.1-8b-instant";
-      } else if (lowerModel.includes("70b") || lowerModel.includes("versatile") || lowerModel.includes("gpt") || lowerModel.includes("8192")) {
-        selectedCleanModel = "llama-3.3-70b-versatile";
-      }
-    }
-
-    const rawCandidates = Array.from(new Set([selectedCleanModel, ...DEFAULT_MODEL_CANDIDATES]));
-    const modelCandidates = rawCandidates.map(c => (c.includes("8192") || c.includes("llama3-70b") ? "llama-3.3-70b-versatile" : c));
+    // Utilizzo sicuro e blindato del modello principale supportato
+    const modelCandidates = ["llama-3.3-70b-versatile"];
 
     let replyText: string | null = null;
     let lastError = "";
