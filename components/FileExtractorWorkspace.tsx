@@ -134,8 +134,19 @@ export default function FileExtractorWorkspace() {
             {selectedFile ? (
               <>
                 <div className="flex justify-between items-center mb-3 border-b border-zinc-800 pb-2">
-                  <span className="text-xs font-mono text-emerald-400 truncate max-w-[80%]">{selectedFile.path}</span>
-                  <span className="text-[10px] text-zinc-500">{(selectedFile.size / 1024).toFixed(2)} KB</span>
+                  <span className="text-xs font-mono text-emerald-400 truncate max-w-[60%]">{selectedFile.path}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-zinc-500">{(selectedFile.size / 1024).toFixed(2)} KB</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`File: ${selectedFile.path}\n\nContenuto:\n${selectedFile.content}`);
+                        alert("Contenuto del file copiato negli appunti! Ora incollalo nella Chat per farlo analizzare all'IA.");
+                      }}
+                      className="bg-emerald-600/30 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/50 px-2.5 py-1 rounded text-[10px] font-bold transition flex items-center gap-1"
+                    >
+                      📋 Copia per la Chat
+                    </button>
+                  </div>
                 </div>
                 <div className="flex-1 overflow-auto bg-zinc-950 p-3 rounded border border-zinc-900 font-mono text-xs text-zinc-300 whitespace-pre-wrap select-all">
                   {selectedFile.content}
