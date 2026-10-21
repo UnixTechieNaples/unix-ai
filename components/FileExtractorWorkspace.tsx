@@ -56,13 +56,39 @@ export default function FileExtractorWorkspace() {
     f.path.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
+  const copyAllFilesForChat = () => {
+    if (!result || !result.files) return;
+    
+    let fullBundle = `PROGETTO / ARCHIVIO: ${result.fileName}\nTotale file: ${result.totalFiles}\n\n========================================\n\n`;
+    
+    result.files.forEach((file: ExtractedFile, index: number) => {
+      fullBundle += `--- FILE [${index + 1}/${result.totalFiles}]: ${file.path} ---\n`;
+      fullBundle += `${file.content}\n\n`;
+      fullBundle += `========================================\n\n`;
+    });
+
+    navigator.clipboard.writeText(fullBundle);
+    alert("Tutti i file e le cartelle dell'archivio sono stati copiati negli appunti! Ora puoi incollarli direttamente nella Chat.");
+  };
+
   return (
     <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6 text-zinc-100 max-w-6xl mx-auto shadow-2xl">
-      <div className="mb-6">
-        <h2 className="text-xl font-bold tracking-wide text-emerald-400">Laboratorio Estrazione Archivi & File</h2>
-        <p className="text-sm text-zinc-400 mt-1">
-          Trascina o seleziona un file ZIP, di log o di codice per analizzarne la struttura e i contenuti in tempo reale.
-        </p>
+      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h2 className="text-xl font-bold tracking-wide text-emerald-400">Laboratorio Estrazione Archivi & File</h2>
+          <p className="text-sm text-zinc-400 mt-1">
+            Trascina o seleziona un file ZIP, di log o di codice per analizzarne la struttura e i contenuti in tempo reale.
+          </p>
+        </div>
+        
+        {result && result.type === "zip" && (
+          <button
+            onClick={copyAllFilesForChat}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg text-xs transition shadow-lg flex items-center gap-2"
+          >
+            🚀 Copia Tutto l'Archivio per la Chat ({result.totalFiles} file)
+          </button>
+        )}
       </div>
 
       {/* Area Drag & Drop / Upload */}
@@ -140,11 +166,11 @@ export default function FileExtractorWorkspace() {
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(`File: ${selectedFile.path}\n\nContenuto:\n${selectedFile.content}`);
-                        alert("Contenuto del file copiato negli appunti! Ora incollalo nella Chat per farlo analizzare all'IA.");
+                        alert("Contenuto del file singolo copiato negli appunti!");
                       }}
                       className="bg-emerald-600/30 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/50 px-2.5 py-1 rounded text-[10px] font-bold transition flex items-center gap-1"
                     >
-                      📋 Copia per la Chat
+                      📋 Copia File
                     </button>
                   </div>
                 </div>
