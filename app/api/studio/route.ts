@@ -150,7 +150,7 @@ export async function POST(req: Request) {
                   `{/* Pulsante auto-generato dall'Entità */}
                   <button type="button" onClick={toggleListening} className="px-3 py-2 bg-slate-900 border border-cyan-500/40 text-cyan-300 rounded-lg text-sm font-bold hover:bg-cyan-500/20 transition">
                     {isListening ? "🔴 In ascolto..." : "🎤 Parla"}
-                  </button>\n              <form `
+                  </button>\n     <form `
                 );
               }
 
@@ -241,7 +241,7 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
     `;
 
     let userMessageContent: any = userPrompt || "Analizza questo file allegato.";
-    let activeModel = "openai/gpt-oss-20b";
+    let activeModel = "llama-3.3-70b-versatile";
 
     if (attachedFile && attachedFile.type && attachedFile.type.startsWith('image/')) {
       activeModel = "llama-3.2-11b-vision-preview";
@@ -251,7 +251,7 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
       ];
     }
 
-    const modelsToTry = [activeModel, "llama3-70b-8192"];
+    const modelsToTry = [activeModel, "llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
     let rawContent = null;
     let lastError = "";
 
