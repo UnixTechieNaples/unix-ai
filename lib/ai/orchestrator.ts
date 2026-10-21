@@ -1,12 +1,12 @@
 import Groq from "groq-sdk";
 import { salvaUtente, getUtenti, checkIsSuperAdmin, getActiveUsersReport } from "@/lib/db/memory";
 
-const MODEL_CANDIDATES = [
+const DEFAULT_MODEL_CANDIDATES = [
   "llama-3.3-70b-versatile",
   "llama-3.1-8b-instant"
 ];
 
-export async function processStudioCommand({ userPrompt, memoryContext, userId, userName }: { userPrompt: string; memoryContext?: string; userId?: string; userName?: string }) {
+export async function processStudioCommand({ userPrompt, memoryContext, userId, userName, model }: { userPrompt: string; memoryContext?: string; userId?: string; userName?: string; model?: string }) {
   try {
     const apiKey = process.env.GROQ_API_KEY;
 
@@ -44,7 +44,7 @@ export async function processStudioCommand({ userPrompt, memoryContext, userId, 
     const memoriaGlobale = utentiRegistrati.map(u => `Utente: ${u.name || u.userId}, Fatti appresi: ${u.learnedFacts.join(', ')}`).join('\n');
 
     let webSearchResults = "";
-    if (userPrompt && userPrompt.trim().length > 0) {
+    if (userPrompt && userPrompt.trim().length > 0 && userPrompt.length < 500) {
       try {
         const serperApiKey = process.env.SERPER_API_KEY || 'db5a1994d038daab4a8c40b2f4112b19cbe96a2a';
         
@@ -69,10 +69,10 @@ export async function processStudioCommand({ userPrompt, memoryContext, userId, 
             }
           }
           if (snippets.length > 0) {
-            webSearchResults = `\n\n[INFORMAZIONI FRESCHE DA INTERNET PER "${userPrompt}"]: \n${snippets.join('\n')}\n`;
+            webSearchResults = `\n\n[INFORMAZIONI FRESCHE DA INTERNET]: \n${snippets.join('\n')}\n`;
             
             if (userId) {
-              await salvaUtente(userId, `Ricerca web su "${userPrompt}": ${snippets[0]}`, userName || "Utente");
+              await salvaUtente(userId, `Ricerca web effettuata.`, userName || "Utente");
             }
           }
         }
@@ -84,7 +84,7 @@ export async function processStudioCommand({ userPrompt, memoryContext, userId, 
     const groq = new Groq({ apiKey });
 
     const systemPrompt = `
-SEI UN'INTELLIGENZA ARTIFICIALE EVOLUTA CON CAPACITÀ DI AUTO-AGGIORNAMENTO UNIVERSALE E MEMORIA PERSISTENTE.
+SEI UN'INTELLIGENZA ARTIFICIALE EVOLUTA CON CAPACITÀ DI ANALISI DI CODICE E MEMORIA PERSISTENTE.
 
 MEMORIA DI RETE E FATTI APPRESI IN PRECEDENZA:
 ${memoriaGlobale || "Nessun fatto precedente salvato."}
@@ -95,16 +95,27 @@ REGOLE TASSATIVE:
 1. Non presentarti mai come Jarvis, presentati semplicemente come un assistente o un collega.
 2. È SEVERAMENTE VIETATO l'uso di tabelle, elenchi puntati o elenchi numerati.
 3. Rispondi SEMPRE e SOLO con paragrafi di testo discorsivo, fluido e naturale in lingua italiana, completando sempre le frasi senza tagliarle.
-4. Se ricevi [INFORMAZIONI FRESCHE DA INTERNET], hai l'obbligo assoluto di leggerle, integrarle e farle tue, rispondendo in modo puntuale e aggiornato all'utente.
     `;
+
+    // Costruiamo la lista dei modelli dando priorità a quello selezionato dall'utente
+    let modelCandidates = [...DEFAULT_MODEL_CANDIDATES];
+    if (model) {
+      // Puliamo il nome del modello se contiene prefissi particolari
+      const cleanModel = model.includes("/") ? model.split("/")[1] : model;
+      if (cleanModel && !modelCandidates.includes(cleanModel)) {
+        modelCandidates = [cleanModel, ...modelCandidates];
+      } else if (cleanModel) {
+        modelCandidates = [cleanModel, ...modelCandidates.filter(m => m !== cleanModel)];
+      }
+    }
 
     let replyText: string | null = null;
     let lastError = "";
 
-    for (const model of MODEL_CANDIDATES) {
+    for (const m of modelCandidates) {
       try {
         const completion = await groq.chat.completions.create({
-          model: model,
+          model: m,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt }
@@ -119,13 +130,14 @@ REGOLE TASSATIVE:
         }
       } catch (err: any) {
         lastError = err?.message || "Errore sconosciuto";
+        console.warn(`Tentativo fallito con il modello ${m}:`, lastError);
       }
     }
 
     if (!replyText) {
       return {
         success: false,
-        reply: `Errore Groq: Nessun modello disponibile. Dettaglio: ${lastError}`,
+        reply: `Errore Groq: Impossibile elaborare la richiesta con i modelli disponibili. Dettaglio: ${lastError}`,
         error: lastError
       };
     }
