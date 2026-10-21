@@ -343,5 +343,5 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  return NextResponse.json({ success: status: 200, success: true, message: "Eliminazione completata." });
+  return NextResponse.json({ success: true, message: "Eliminazione completata." });
 }
