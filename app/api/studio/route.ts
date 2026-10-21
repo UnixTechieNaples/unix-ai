@@ -103,7 +103,6 @@ export async function POST(req: Request) {
         if (fs.existsSync(pagePath)) {
           let currentCode = fs.readFileSync(pagePath, "utf-8");
 
-          // Se viene chiesto di aggiungere il tasto vocale o simili e non è ancora presente
           if ((lowerPrompt.includes("voce") || lowerPrompt.includes("parla") || lowerPrompt.includes("tasto")) && !currentCode.includes("SpeechRecognition")) {
             
             const speechLogicToAdd = `
@@ -154,7 +153,6 @@ export async function POST(req: Request) {
                 );
               }
 
-              // Eseguiamo il commit diretto tramite GitHub API per persistenza reale su Vercel
               const commitResult = await commitFileToGitHub(
                 "app/page.tsx",
                 currentCode,
@@ -251,27 +249,23 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
       ];
     }
 
-    const modelsToTry = [activeModel, "llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
     let rawContent = null;
     let lastError = "";
 
-    for (const modelName of modelsToTry) {
-      try {
-        const completion = await groq.chat.completions.create({
-          model: modelName,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessageContent }
-          ],
-          temperature: 0.7,
-          max_tokens: 2048,
-        });
+    try {
+      const completion = await groq.chat.completions.create({
+        model: activeModel,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessageContent }
+        ],
+        temperature: 0.7,
+        max_tokens: 2048,
+      });
 
-        rawContent = completion.choices[0]?.message?.content;
-        if (rawContent) break;
-      } catch (err: any) {
-        lastError = err?.message || "Errore sconosciuto";
-      }
+      rawContent = completion.choices[0]?.message?.content;
+    } catch (err: any) {
+      lastError = err?.message || "Errore sconosciuto";
     }
 
     if (!rawContent) {
@@ -349,5 +343,5 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  return NextResponse.json({ success: true, message: "Eliminazione completata." });
+  return NextResponse.json({ success: status: 200, success: true, message: "Eliminazione completata." });
 }
