@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Recupero dati dalla richiesta
-    const { messages, model = 'llama-3.1-8b-instant' } = await request.json();
+    const { messages, model = 'llama3-8b-8192' } = await request.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: 'Messaggi mancanti o invalidi' }, { status: 400 });
