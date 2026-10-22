@@ -6,7 +6,9 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const rawContent = await callGemini("Analizza lo stato del codice ed esponi in JSON valido: { "hasBug": false, "title": "...", "description": "...", "details": "...", "affectedFile": "..." }");
+    const rawContent = await callGemini(
+      'Analizza lo stato del codice ed esponi in formato JSON valido: { "hasBug": false, "title": "...", "description": "...", "details": "...", "affectedFile": "..." }'
+    );
     const cleanedJson = rawContent.replace(/```json/g, "").replace(/```/g, "").trim();
     const result = JSON.parse(cleanedJson);
 
