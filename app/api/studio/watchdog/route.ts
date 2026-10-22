@@ -57,7 +57,7 @@ Se non trovi problemi critici, imposta "hasBug": false.
     `;
 
     const completion = await groq.chat.completions.create({
-      model: "gemini-3.8-flash",
+      model: "gemini-1.5-flash",
       messages: [{ role: "system", content: systemPrompt }],
       temperature: 0.2,
       max_tokens: 1024
