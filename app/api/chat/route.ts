@@ -4,26 +4,50 @@ import { chiamaGroq } from "@/lib/cliente-groq";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-async function cercaSuInternet(query: string): Promise<string> {
+// Funzione avanzata per cercare su Internet
+async function cercaSuInternetAvanzata(query: string): Promise<string> {
   try {
-    const res = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`);
+    // 1. Prova prima la ricerca meteo/notizie diretta tramite wttr.in se la domanda riguarda il meteo
+    if (query.toLowerCase().includes("meteo") || query.toLowerCase().includes("tempo")) {
+      try {
+        const meteoRes = await fetch(`https://wttr.in/Napoli?format=3`, { headers: { "User-Agent": "curl/7.68.0" } });
+        if (meteoRes.ok) {
+          const testoMeteo = await meteoRes.text();
+          if (testoMeteo && testoMeteo.trim().length > 0) {
+            return `Meteo live rilevato: ${testoMeteo.trim()}`;
+          }
+        }
+      } catch (e) {
+        console.error("Errore meteo direct:", e);
+      }
+    }
+
+    // 2. Ricerca generica web tramite DuckDuckGo Lite HTML
+    const res = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+      }
+    });
+
     if (!res.ok) return "";
-    const data = await res.json();
+    const html = await res.text();
     
-    let risultati = "";
-    if (data.AbstractText) {
-      risultati += `Sintesi principale: ${data.AbstractText}\n`;
+    // Estrazione dei snippet dai risultati della ricerca
+    const regex = /<a class="result__snippet[^>]*>(.*?)<\/a>/g;
+    const corrispondenze = [];
+    let match;
+    while ((match = regex.exec(html)) !== null && corrispondenze.length < 4) {
+      const testoPulito = match[1].replace(/<[^>]+>/g, '').trim();
+      if (testoPulito) corrispondenze.push(testoPulito);
     }
-    if (data.RelatedTopics && Array.isArray(data.RelatedTopics)) {
-      const argomenti = data.RelatedTopics.slice(0, 3)
-        .map((t: any) => t.Text)
-        .filter(Boolean)
-        .join("\n- ");
-      if (argomenti) risultati += `Dettagli dal web:\n- ${argomenti}\n`;
+
+    if (corrispondenze.length > 0) {
+      return "Risultati live dal web:\n- " + corrispondenze.join("\n- ");
     }
-    return risultati;
+
+    return "";
   } catch (err) {
-    console.error("Errore ricerca web:", err);
+    console.error("Errore durante la ricerca web:", err);
     return "";
   }
 }
@@ -33,11 +57,13 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const messaggioUtente = body?.message || body?.messages?.[body?.messages?.length - 1]?.content || "Ciao";
 
-    const risultatiWeb = await cercaSuInternet(messaggioUtente);
+    // Esegui la ricerca su Internet
+    const informazioniLive = await cercaSuInternetAvanzata(messaggioUtente);
 
+    // Costruisci il prompt con istruzioni chiare per l'IA
     let promptFinale = messaggioUtente;
-    if (risultatiWeb) {
-      promptFinale = `[INFORMAZIONI IN TEMPO REALE DA INTERNET]:\n${risultatiWeb}\n\n[DOMANDA UTENTE]: ${messaggioUtente}`;
+    if (informazioniLive) {
+      promptFinale = `[INFORMAZIONI IN TEMPO REALE OTTERNUTE DA INTERNET]:\n${informazioniLive}\n\n[ISTRUZIONE]: Rispondi all'utente utilizzando le informazioni in tempo reale fornite sopra.\n\n[DOMANDA UTENTE]: ${messaggioUtente}`;
     }
 
     const rispostaIstruita = await chiamaGroq(promptFinale);
@@ -46,7 +72,7 @@ export async function POST(req: Request) {
       success: true,
       response: rispostaIstruita,
       message: rispostaIstruita,
-      fontiWeb: risultatiWeb ? true : false
+      fontiWeb: informazioniLive ? true : false
     });
   } catch (errore: any) {
     return NextResponse.json(
