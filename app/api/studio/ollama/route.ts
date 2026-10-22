@@ -230,7 +230,7 @@ REGOLE TASSATIVE:
     contents.push(userPrompt || "Analizza le informazioni fornite.");
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-1.5-flash',
       contents: contents,
       config: {
         systemInstruction: systemInstructions,
