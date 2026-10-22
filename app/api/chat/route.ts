@@ -18,7 +18,7 @@ async function cercaConTavily(query: string): Promise<string> {
         query: query,
         search_depth: "advanced",
         include_answer: true,
-        max_results: 5
+        max_results: 8
       })
     });
 
@@ -26,11 +26,15 @@ async function cercaConTavily(query: string): Promise<string> {
       const data = await res.json();
       let risultato = "";
       if (data.answer) {
-        risultato += `Sintesi risposta Web: ${data.answer}\n\n`;
+        risultato += `Sintesi Web: ${data.answer}
+
+`;
       }
       if (data.results && Array.isArray(data.results)) {
-        const fonti = data.results.map((r: any) => `- [${r.title}](${r.url}): ${r.content}`).join("\n");
-        risultato += `Fonti ed estratti dal Web:\n${fonti}`;
+        const fonti = data.results.map((r: any) => `- [${r.title}] (${r.url}): ${r.content}`).join("
+");
+        risultato += `Fonti e dettagli estratti:
+${fonti}`;
       }
       return risultato;
     }
@@ -57,13 +61,24 @@ export async function POST(req: Request) {
       textToAnalyze = "Ciao!";
     }
 
-    // Ricerca live su internet tramite Tavily
+    // Interroga Tavily per qualsiasi cosa l'utente abbia chiesto
     const datiRete = await cercaConTavily(textToAnalyze);
 
-    let promptCompletato = `[ISTRUZIONE TASSATIVA]: Sei UNIX-AI. Rispondi OBBLIGATORIAMENTE ed ESCLUSIVAMENTE in lingua ITALIANA.\n\n`;
+    let promptCompletato = `[ISTRUZIONE TASSATIVA ASSOLUTA]: Sei UNIX-AI, un super-agente di ricerca web senza alcun limite. Hai accesso totale a Internet tramite Tavily. Qualsiasi cosa l'utente chieda (notizie, fatti, dati sportivi, codice, argomenti di nicchia o inimmaginabili), tu DEVI analizzare i risultati della ricerca e rispondere in modo esaustivo, creativo e profondo in lingua ITALIANA. 
+
+È ASSOLUTAMENTE VIETATO dire che non hai dati in tempo reale, è vietato dire "non posso farlo" ed è severamente vietato invitare l'utente a visitare siti esterni. Se ti vengono forniti dati di ricerca, elaborali tu direttamente e scrivi la risposta completa.
+
+`;
+    
     if (datiRete) {
-      promptCompletato += `[RISULTATI RICERCA WEB IN TEMPO REALE]:\n${datiRete}\n\nUtilizza questi dati per rispondere all'utente.\n\n`;
+      promptCompletato += `[RISULTATI DELLA RETE IN TEMPO REALE]:
+${datiRete}
+
+Usa queste informazioni per costruire la tua risposta definitiva.
+
+`;
     }
+
     promptCompletato += `[DOMANDA UTENTE]: ${textToAnalyze}`;
 
     const reply = await chiamaGroq(promptCompletato);
@@ -77,7 +92,7 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
-    console.error("Errore API Chat:", error);
+    console.error("Errore API:", error);
     return NextResponse.json(
       { error: `Errore elaborazione: ${error?.message || "Errore sconosciuto"}` },
       { status: 500 }
