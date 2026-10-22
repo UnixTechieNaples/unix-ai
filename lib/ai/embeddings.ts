@@ -7,7 +7,6 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 /**
  * Genera l'embedding vettoriale per un dato testo.
- * Usa un provider di embeddings (es. OpenAI / HuggingFace free-tier / Local).
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
   const cleanText = text.replace(/\n/g, ' ');
@@ -86,4 +85,27 @@ export async function searchMemories(
   }
 
   return data;
+}
+
+/**
+ * FUNZIONE PONTE per il Chat Engine
+ * Recupera le memorie e le formatta in un unico blocco di testo per il prompt.
+ */
+export async function getSemanticMemory(userId: string, query: string): Promise<string> {
+  try {
+    // Esegue la ricerca semantica
+    const memories = await searchMemories(query, 5, 0.5);
+    
+    if (!memories || memories.length === 0) {
+      return "Nessuna memoria rilevante trovata.";
+    }
+
+    // Concatena i contenuti delle memorie trovate in un unico testo
+    return memories
+      .map((m: any) => `[Memoria]: ${m.content}`)
+      .join('\n');
+  } catch (error) {
+    console.error('Errore in getSemanticMemory:', error);
+    return "Errore nel recupero della memoria semantica.";
+  }
 }
