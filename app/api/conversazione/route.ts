@@ -7,18 +7,48 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    const messaggioUtente = body?.message || body?.messages?.[body?.messages?.length - 1]?.content || "Ciao";
+    const { messages, prompt, message } = body;
+    
+    let testoUtente = prompt || message || "";
+    if (!testoUtente && Array.isArray(messages) && messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      testoUtente = typeof lastMsg === "string" ? lastMsg : (lastMsg.content || lastMsg.text || "");
+    }
 
-    const rispostaIstruita = await chiamaGroq(messaggioUtente);
+    if (!testoUtente) {
+      testoUtente = "Ciao";
+    }
+
+    // Se l'utente saluta, rispondiamo direttamente in modo naturale senza elaborazioni pesanti
+    const q = testoUtente.trim().toLowerCase();
+    let risposta = "";
+
+    if (["ciao", "salve", "buongiorno", "buonasera", "come stai"].includes(q)) {
+      risposta = "Ciao! Sono UNIX-AI, il tuo assistente virtuale. Come posso aiutarti oggi?";
+    } else {
+      // Chiamata a Groq per domande normali
+      risposta = await chiamaGroq(testoUtente);
+    }
+
+    // Pulizia rigorosa di qualsiasi simbolo markdown per la sintesi vocale e la visualizzazione pulita
+    const rispostaPulita = risposta
+      .replace(/\*\*/g, "")
+      .replace(/\*/g, "")
+      .replace(/#/g, "")
+      .replace(/---/g, "")
+      .replace(/`/g, "")
+      .trim();
 
     return NextResponse.json({
       success: true,
-      response: rispostaIstruita,
-      message: rispostaIstruita
+      message: rispostaPulita,
+      response: rispostaPulita,
+      content: rispostaPulita
     });
-  } catch (errore: any) {
+
+  } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: errore?.message || "Errore durante l'elaborazione della risposta." },
+      { error: `Errore elaborazione: ${error?.message || "Errore sconosciuto"}` },
       { status: 500 }
     );
   }
