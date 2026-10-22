@@ -11,10 +11,10 @@ async function cercaConTavily(query: string): Promise<string> {
     const res = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: { 
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${TAVILY_KEY}`
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
+        api_key: TAVILY_KEY,
         query: query,
         search_depth: "advanced",
         include_answer: true,
@@ -33,9 +33,12 @@ async function cercaConTavily(query: string): Promise<string> {
         risultato += `Fonti e dettagli estratti:\n${fonti}`;
       }
       return risultato;
+    } else {
+      const errText = await res.text();
+      console.error("Errore HTTP Tavily:", res.status, errText);
     }
   } catch (err) {
-    console.error("Errore Tavily API:", err);
+    console.error("Errore fetch Tavily API:", err);
   }
   return "";
 }
