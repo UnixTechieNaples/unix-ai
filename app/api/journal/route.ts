@@ -53,7 +53,9 @@ Rispondi ESCLUSIVAMENTE in formato JSON valido:
 }
     `;
 
-    const completion = await ;
+    const aiResponse = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    const textContent = aiResponse.text || '';
+    const completion = { choices: [{ message: { content: textContent } }] };
 
     const rawContent = completion.choices[0]?.message?.content || "";
     const cleanedJson = rawContent.replace(/```json/g, "").replace(/```/g, "").trim();

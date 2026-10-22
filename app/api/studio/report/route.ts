@@ -27,7 +27,9 @@ Usa le informazioni e i contesti forniti dalla memoria neurale se disponibili: $
 Scrivi in lingua italiana con uno stile professionale, pulito e discorsivo, evitando tabelle rigide o elenchi puntati eccessivi. Struttura il testo in modo organico.
     `;
 
-    const completion = await ;
+    const aiResponse = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    const textContent = aiResponse.text || '';
+    const completion = { choices: [{ message: { content: textContent } }] };
 
     const generatedContent = completion.choices[0]?.message?.content || "Generazione del documento completata.";
 

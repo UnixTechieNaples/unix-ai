@@ -17,7 +17,9 @@ export async function GET(req: Request) {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
     // L'IA riflette autonomamente su cosa analizzare o migliorare con il modello aggiornato
-    const completion = await ;
+    const aiResponse = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    const textContent = aiResponse.text || '';
+    const completion = { choices: [{ message: { content: textContent } }] };
 
     const thought = completion.choices[0]?.message?.content || "Analisi completata senza variazioni necessarie.";
 
