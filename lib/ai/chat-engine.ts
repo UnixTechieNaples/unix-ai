@@ -38,9 +38,8 @@ export async function executeAIChat({ userId, messages, model }: ChatRequest) {
     Rispondi in modo tecnico, preciso e professionale.
   `;
 
-  // 4. Modello attivo e stabile supportato da Groq
-  const STABLE_MODEL = 'openai/gpt-oss-20b';
-  const selectedModel = model && model.includes('llama') ? STABLE_MODEL : (model || STABLE_MODEL);
+  // 4. Modello attivo e stabile verificato sulla dashboard di Groq
+  const ACTIVE_MODEL = 'llama-3.3-70b-versatile';
 
   try {
     const completion = await groq.chat.completions.create({
@@ -48,7 +47,7 @@ export async function executeAIChat({ userId, messages, model }: ChatRequest) {
         { role: 'system', content: systemPrompt },
         ...messages,
       ],
-      model: selectedModel,
+      model: ACTIVE_MODEL,
       temperature: 0.7,
       max_tokens: 4096,
     });
