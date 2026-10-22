@@ -56,12 +56,7 @@ Rispondi ESCLUSIVAMENTE in formato JSON valido:
 Se non trovi problemi critici, imposta "hasBug": false.
     `;
 
-    const completion = await groq.chat.completions.create({
-      model: "gemini-2.5-flash",
-      messages: [{ role: "system", content: systemPrompt }],
-      temperature: 0.2,
-      max_tokens: 1024
-    });
+    const completion = await ;
 
     const rawContent = completion.choices[0]?.message?.content || "";
     const cleanedJson = rawContent.replace(/```json/g, "").replace(/```/g, "").trim();

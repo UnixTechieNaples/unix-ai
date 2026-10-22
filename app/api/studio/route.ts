@@ -253,15 +253,7 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
     let lastError = "";
 
     try {
-      const completion = await groq.chat.completions.create({
-        model: activeModel,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessageContent }
-        ],
-        temperature: 0.7,
-        max_tokens: 2048,
-      });
+      const completion = await ;
 
       rawContent = completion.choices[0]?.message?.content;
     } catch (err: any) {

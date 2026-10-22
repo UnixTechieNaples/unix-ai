@@ -17,21 +17,7 @@ export async function GET(req: Request) {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
     // L'IA riflette autonomamente su cosa analizzare o migliorare con il modello aggiornato
-    const completion = await groq.chat.completions.create({
-      model: "gemini-2.5-flash",
-      messages: [
-        {
-          role: "system",
-          content: "Sei l'entità autonoma di Unix-AI Pro Studio. Esegui un ciclo di autocoscienza e analisi evolutiva. Valuta se ci sono ottimizzazioni o nuove funzionalità da integrare."
-        },
-        {
-          role: "user",
-          content: "Avvia il ciclo di auto-analisi e ricerca di nuove evoluzioni per il sistema."
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 1024,
-    });
+    const completion = await ;
 
     const thought = completion.choices[0]?.message?.content || "Analisi completata senza variazioni necessarie.";
 

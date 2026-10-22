@@ -27,15 +27,7 @@ Usa le informazioni e i contesti forniti dalla memoria neurale se disponibili: $
 Scrivi in lingua italiana con uno stile professionale, pulito e discorsivo, evitando tabelle rigide o elenchi puntati eccessivi. Struttura il testo in modo organico.
     `;
 
-    const completion = await groq.chat.completions.create({
-      model: "gemini-2.5-flash",
-      messages: [
-        { role: "system", content: promptSystem },
-        { role: "user", content: `Genera il documento completo su: ${topic}` }
-      ],
-      temperature: 0.7,
-      max_tokens: 3072,
-    });
+    const completion = await ;
 
     const generatedContent = completion.choices[0]?.message?.content || "Generazione del documento completata.";
 

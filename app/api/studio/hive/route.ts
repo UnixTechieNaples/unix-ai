@@ -30,15 +30,7 @@ Dietro le quinte, tre sub-agenti virtuali hanno analizzato la richiesta:
 Il tuo compito è sintetizzare le loro prospettive in un'unica risposta magistrale, fluida, coesa e autorevole, parlando con un'unica voce unitaria. Evita elenchi puntati o tabelle rigide; rispondi in modo discorsivo, chiaro e orientato all'azione.
     `;
 
-    const completion = await groq.chat.completions.create({
-      model: "gemini-2.5-flash",
-      messages: [
-        { role: "system", content: hiveSystemPrompt },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.7,
-      max_tokens: 2048,
-    });
+    const completion = await ;
 
     const unifiedReply = completion.choices[0]?.message?.content || "Sintesi della Mente Alveare completata.";
 
