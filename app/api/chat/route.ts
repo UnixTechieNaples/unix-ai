@@ -4,43 +4,68 @@ import { chiamaGroq } from "@/lib/cliente-groq";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-async function ottieniMeteoLive(citta: string): Promise<string> {
+async function cercaSuInternetUniversale(query: string): Promise<string> {
   try {
-    // Coordinate approssimative per Napoli (40.8522, 14.2681)
-    const url = "https://api.open-meteo.com/v1/forecast?latitude=40.8522&longitude=14.2681&current_weather=true&timezone=Europe%2FRome";
-    const res = await fetch(url);
-    if (!res.ok) return "";
-    const data = await res.json();
-    if (data && data.current_weather) {
-      const temp = data.current_weather.temperature;
-      const vento = data.current_weather.windspeed;
-      return `Dati meteo live per Napoli: Temperatura ${temp}°C, Velocità vento ${vento} km/h.`;
-    }
-  } catch (e) {
-    console.error("Errore meteo:", e);
-  }
-  return "";
-}
-
-async function cercaSuInternet(query: string): Promise<string> {
-  const queryLower = query.toLowerCase();
-  
-  // Se la richiesta riguarda il meteo a Napoli o in generale
-  if (queryLower.includes("meteo") || queryLower.includes("tempo") || queryLower.includes("napoli")) {
-    const datiMeteo = await ottieniMeteoLive("Napoli");
-    if (datiMeteo) return datiMeteo;
-  }
-
-  try {
-    const res = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.AbstractText) {
-        return `Informazione estratta dal web: ${data.AbstractText}`;
+    // 1. Controllo meteo rapido per Napoli
+    const queryLower = query.toLowerCase();
+    if (queryLower.includes("meteo") || queryLower.includes("tempo")) {
+      const meteoRes = await fetch("https://api.open-meteo.com/v1/forecast?latitude=40.8522&longitude=14.2681&current_weather=true&timezone=Europe%2FRome");
+      if (meteoRes.ok) {
+        const data = await meteoRes.json();
+        if (data && data.current_weather) {
+          return `Meteo live a Napoli: Temperatura ${data.current_weather.temperature}°C, Vento ${data.current_weather.windspeed} km/h.`;
+        }
       }
     }
+
+    // 2. Ricerca web generale per qualsiasi argomento tramite DuckDuckGo Instant Answer API
+    const res = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`);
+    if (res.ok) {
+      const data = await res.json();
+      let risultatiTrovati = "";
+
+      if (data.AbstractText) {
+        risultatiTrovati += `Informazione principale: ${data.AbstractText}\n`;
+      }
+
+      if (data.RelatedTopics && Array.isArray(data.RelatedTopics)) {
+        const argomenti = data.RelatedTopics
+          .filter((t: any) => t && t.Text)
+          .slice(0, 3)
+          .map((t: any) => t.Text)
+          .join("\n- ");
+        if (argomenti) {
+          risultatiTrovati += `Dettagli correlati dal web:\n- ${argomenti}\n`;
+        }
+      }
+
+      if (risultatiTrovati) {
+        return risultatiTrovati;
+      }
+    }
+
+    // 3. Fallback di ricerca HTML se l'API istantanea non restituisce dati
+    const htmlRes = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      }
+    });
+    if (htmlRes.ok) {
+      const html = await htmlRes.text();
+      const regex = /<a class="result__snippet[^>]*>(.*?)<\/a>/g;
+      const snippet = [];
+      let match;
+      while ((match = regex.exec(html)) !== null && snippet.length < 3) {
+        const testoPulito = match[1].replace(/<[^>]+>/g, "").trim();
+        if (testoPulito) snippet.push(testoPulito);
+      }
+      if (snippet.length > 0) {
+        return "Risultati web estratti:\n- " + snippet.join("\n- ");
+      }
+    }
+
   } catch (err) {
-    console.error("Errore ricerca web:", err);
+    console.error("Errore durante la ricerca web universale:", err);
   }
 
   return "";
@@ -51,18 +76,18 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const messaggioUtente = body?.message || body?.messages?.[body?.messages?.length - 1]?.content || "Ciao";
 
-    const infoLive = await cercaSuInternet(messaggioUtente);
+    // Esegue la ricerca universale su internet per qualsiasi domanda
+    const infoLive = await cercaSuInternetUniversale(messaggioUtente);
 
-    // Prompt con istruzioni TASSATIVE sull'italiano e dati live inclusi
-    let promptConContesto = `[ISTRUZIONE TASSATIVA]: Rispondi OBBLIGATORIAMENTE ed ESCLUSIVAMENTE in lingua ITALIANA. Non usare mai l'inglese.
+    let promptConContesto = `[ISTRUZIONE TASSATIVA]: Rispondi OBBLIGATORIAMENTE ed ESCLUSIVAMENTE in lingua ITALIANA.
 
 `;
     
     if (infoLive) {
-      promptConContesto += `[DATI IN TEMPO REALE DA INTERNET]:
+      promptConContesto += `[DATI AGGIORNATI DA INTERNET]:
 ${infoLive}
 
-Usa i dati sopra per rispondere alla domanda dell'utente.
+Usa queste informazioni reali per formulare una risposta dettagliata ed esauriente.
 
 `;
     }
