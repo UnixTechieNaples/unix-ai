@@ -1,52 +1,24 @@
-import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { executeAIChat } from '@/lib/ai/chat-engine';
+import { NextResponse } from "next/server";
+import { chiamaGroq } from "@/lib/cliente-groq";
 
-export async function POST(request: Request) {
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+export async function POST(req: Request) {
   try {
-    // 1. Verifica Autenticazione Server-Side
-    const cookieStore = cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-        },
-      }
-    );
+    const body = await req.json().catch(() => ({}));
+    const messaggioUtente = body?.message || body?.messages?.[body?.messages?.length - 1]?.content || "Ciao";
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
-    }
-
-    // 2. Recupero dati dalla richiesta
-    const { messages, model = 'llama3-8b-8192' } = await request.json();
-
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json({ error: 'Messaggi mancanti o invalidi' }, { status: 400 });
-    }
-
-    // 3. Invocazione del Chat Engine (Orchestratore Groq + RAG + Tools)
-    const aiResponse = await executeAIChat({
-      userId: user.id,
-      messages: messages,
-      model: model,
-    });
+    const rispostaIstruita = await chiamaGroq(messaggioUtente);
 
     return NextResponse.json({
       success: true,
-      content: aiResponse,
+      response: rispostaIstruita,
+      message: rispostaIstruita
     });
-
-  } catch (error: any) {
-    console.error('Errore in /api/chat:', error);
+  } catch (errore: any) {
     return NextResponse.json(
-      { error: error.message || 'Errore interno del server' },
+      { success: false, error: errore?.message || "Errore durante l'elaborazione della risposta." },
       { status: 500 }
     );
   }
