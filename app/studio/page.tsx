@@ -36,7 +36,7 @@ export default function StudioDashboard() {
   });
 
   const [activeTab, setActiveTab] = useState<"chat" | "webhooks" | "report" | "approvals" | "journal">("chat");
-  const [selectedModel, setSelectedModel] = useState("gemini-2.0-flash");
+  const [selectedModel, setSelectedModel] = useState("gemini-1.5-flash");
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
