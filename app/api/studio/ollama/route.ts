@@ -6,41 +6,61 @@ export const runtime = "nodejs";
 
 const TAVILY_KEY = process.env.TAVILY_API_KEY || "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";
 
-async function cercaConTavily(query: string): Promise<string> {
+async function cercaSuTavilyOWeb(query: string): Promise<string> {
+  // 1. Tentativo con Tavily API
   try {
     const res = await fetch("https://api.tavily.com/search", {
       method: "POST",
-      headers: { 
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         api_key: TAVILY_KEY,
         query: query,
         search_depth: "advanced",
         include_answer: true,
-        max_results: 8
+        max_results: 5
       })
     });
 
     if (res.ok) {
       const data = await res.json();
-      let risultato = "";
+      let testoTavily = "";
       if (data.answer) {
-        risultato += `Sintesi Web: ${data.answer}\n\n`;
+        testoTavily += `Sintesi Tavily: ${data.answer}\n`;
       }
       if (data.results && Array.isArray(data.results)) {
-        const fonti = data.results.map((r: any) => `- [${r.title}] (${r.url}): ${r.content}`).join("\n");
-        risultato += `Fonti e dettagli estratti:\n${fonti}`;
+        testoTavily += data.results.map((r: any) => `- ${r.title}: ${r.content}`).join("\n");
       }
-      return risultato;
-    } else {
-      const errText = await res.text();
-      console.error("Errore HTTP Tavily:", res.status, errText);
+      if (testoTavily.trim().length > 20) {
+        return testoTavily;
+      }
     }
   } catch (err) {
-    console.error("Errore fetch Tavily API:", err);
+    console.error("Errore Tavily:", err);
   }
-  return "";
+
+  // 2. Fallback diretto HTML Web Scraping su DuckDuckGo se Tavily fallisce o è vuoto
+  try {
+    const htmlRes = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
+    });
+    if (htmlRes.ok) {
+      const html = await htmlRes.text();
+      const regex = /<a class="result__snippet[^>]*>(.*?)<\/a>/g;
+      const snippet = [];
+      let match;
+      while ((match = regex.exec(html)) !== null && snippet.length < 5) {
+        const t = match[1].replace(/<[^>]+>/g, "").trim();
+        if (t) snippet.push(t);
+      }
+      if (snippet.length > 0) {
+        return "Risultati web estratti direttamente:\n- " + snippet.join("\n- ");
+      }
+    }
+  } catch (err) {
+    console.error("Errore Scraping Web:", err);
+  }
+
+  return "Nessun risultato specifico trovato online in questo momento.";
 }
 
 export async function POST(req: Request) {
@@ -60,15 +80,20 @@ export async function POST(req: Request) {
       textToAnalyze = "Ciao!";
     }
 
-    const datiRete = await cercaConTavily(textToAnalyze);
+    // Ricerca live sulla rete
+    const informazioniLive = await cercaSuTavilyOWeb(textToAnalyze);
 
-    let promptCompletato = `[ISTRUZIONE TASSATIVA ASSOLUTA]: Sei UNIX-AI, un super-agente di ricerca web senza alcun limite. Hai accesso totale a Internet tramite Tavily. Qualsiasi cosa l'utente chieda (notizie, fatti, dati sportivi, codice, argomenti di nicchia o inimmaginabili), tu DEVI analizzare i risultati della ricerca e rispondere in modo esaustivo, creativo e profondo in lingua ITALIANA.\n\nÈ ASSOLUTAMENTE VIETATO dire che non hai dati in tempo reale, è vietato dire "non posso farlo" ed è severamente vietato invitare l'utente a visitare siti esterni. Se ti vengono forniti dati di ricerca, elaborali tu direttamente e scrivi la risposta completa.\n\n`;
-    
-    if (datiRete) {
-      promptCompletato += `[RISULTATI DELLA RETE IN TEMPO REALE]:\n${datiRete}\n\nUsa queste informazioni per costruire la tua risposta definitiva.\n\n`;
-    }
-
-    promptCompletato += `[DOMANDA UTENTE]: ${textToAnalyze}`;
+    let promptCompletato = `[ISTRUZIONE TASSATIVA E INDEROGABILE]: Sei UNIX-AI, un super-agente connesso a Internet. Rispondi SEMPRE ed ESCLUSIVAMENTE in lingua ITALIANA.\n\n` +
+      `Ti sono stati forniti dati aggiornati prelevati direttamente dalla rete in tempo reale:\n` +
+      `----------------------------------------\n` +
+      `${informazioniLive}\n` +
+      `----------------------------------------\n\n` +
+      `REGOLE ASSOLUTE:\n` +
+      `1. Utilizza OBBLIGATORIAMENTE le informazioni sopra per rispondere alla domanda dell'utente.\n` +
+      `2. È SEVERAMENTE VIETATO dire che non hai accesso a Internet o ai dati in tempo reale.\n` +
+      `3. È SEVERAMENTE VIETATO invitare l'utente a consultare siti esterni o app.\n` +
+      `4. Se i dati contengono notizie, calendari o informazioni, riassumili e formluali direttamente tu nella risposta.\n\n` +
+      `[DOMANDA DELL'UTENTE]: ${textToAnalyze}`;
 
     const reply = await chiamaGroq(promptCompletato);
 
@@ -77,7 +102,7 @@ export async function POST(req: Request) {
       message: reply,
       response: reply,
       content: reply,
-      fontiWeb: datiRete ? true : false
+      fontiWeb: true
     });
 
   } catch (error: any) {
