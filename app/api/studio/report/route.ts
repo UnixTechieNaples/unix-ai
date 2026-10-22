@@ -28,7 +28,7 @@ Scrivi in lingua italiana con uno stile professionale, pulito e discorsivo, evit
     `;
 
     const completion = await groq.chat.completions.create({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       messages: [
         { role: "system", content: promptSystem },
         { role: "user", content: `Genera il documento completo su: ${topic}` }

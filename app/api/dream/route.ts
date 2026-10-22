@@ -43,7 +43,7 @@ Rispondi ESCLUSIVAMENTE in formato JSON valido:
     `;
 
     const completion = await groq.chat.completions.create({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       messages: [{ role: "system", content: systemPrompt }],
       temperature: 0.5,
       max_tokens: 1024
