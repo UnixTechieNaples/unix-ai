@@ -5,28 +5,11 @@ import { executeAIChat } from '@/lib/ai/chat-engine';
 
 export async function POST(request: Request) {
   try {
-    // 1. Verifica Sessione Server-Side
-    const cookieStore = cookies();
-    const supabase = createServerClient(
-      process.env.L'analisi del codice conferma il problema: il file `app/api/chat/route.ts` che mi hai inviato è solo un **mock (una simulazione)**. Non effettua alcuna chiamata a Groq, ma restituisce semplicemente un messaggio di testo dicendo che l'endpoint è "configurato".
-
-L'errore `404 Model Not Found` che vedi nello screenshot suggerisce che il tuo frontend sta probabilmente chiamando un'altra rotta o utilizzando un SDK che punta a un modello con un nome errato.
-
-Dobbiamo sostituire l'intero contenuto di `app/api/chat/route.ts` per renderlo operativo e sicuro. Ecco la versione definitiva e corretta che integra la sessione server, il controllo dei ruoli e l'invocazione reale del modello tramite `executeAIChat`.
-
-```typescript
-import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { executeAIChat } from '@/lib/ai/chat-engine';
-
-export async function POST(request: Request) {
-  try {
     // 1. Verifica Autenticazione Server-Side
     const cookieStore = cookies();
     const supabase = createServerClient(
-      process.env.NEXT\_PUBLIC\_SUPABASE\_URL!,
-      process.env.NEXT\_PUBLIC\_SUPABASE\_ANON\_KEY!,
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
           get(name: string) {
@@ -49,7 +32,6 @@ export async function POST(request: Request) {
     }
 
     // 3. Invocazione del Chat Engine (Orchestratore Groq + RAG + Tools)
-    // Passiamo l'userId per permettere al chat-engine di recuperare la memoria semantica specifica
     const aiResponse = await executeAIChat({
       userId: user.id,
       messages: messages,
