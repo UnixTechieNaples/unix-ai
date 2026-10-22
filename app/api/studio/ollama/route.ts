@@ -1,9 +1,48 @@
 import { NextResponse } from "next/server";
-import { callGemini } from "@/lib/gemini";
+import { chiamaGroq } from "@/lib/cliente-groq";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+const TAVILY_KEY = process.env.TAVILY_API_KEY || "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";
+
+async function cercaConTavily(query: string): Promise<string> {
+  try {
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${TAVILY_KEY}`
+      },
+      body: JSON.stringify({
+        query: query,
+        search_depth: "advanced",
+        include_answer: true,
+        max_results: 5
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      let risultato = "";
+      if (data.answer) {
+        risultato += `Sintesi risposta Web: ${data.answer}\n\n`;
+      }
+      if (data.results && Array.isArray(data.results)) {
+        const fonti = data.results.map((r: any) => `- [${r.title}](${r.url}): ${r.content}`).join("\n");
+        risultato += `Fonti ed estratti dal Web:\n${fonti}`;
+      }
+      return risultato;
+    }
+  } catch (err) {
+    console.error("Errore Tavily API:", err);
+  }
+  return "";
+}
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { messages, prompt } = body;
     
     let textToAnalyze = "";
@@ -18,18 +57,28 @@ export async function POST(req: Request) {
       textToAnalyze = "Ciao!";
     }
 
-    const reply = await callGemini(textToAnalyze);
+    const datiRete = await cercaConTavily(textToAnalyze);
+
+    let promptCompletato = `[ISTRUZIONE TASSATIVA]: Sei UNIX-AI. Rispondi OBBLIGATORIAMENTE ed ESCLUSIVAMENTE in lingua ITALIANA.\n\n`;
+    if (datiRete) {
+      promptCompletato += `[RISULTATI RICERCA WEB IN TEMPO REALE]:\n${datiRete}\n\nUtilizza questi dati per rispondere all'utente.\n\n`;
+    }
+    promptCompletato += `[DOMANDA UTENTE]: ${textToAnalyze}`;
+
+    const reply = await chiamaGroq(promptCompletato);
 
     return NextResponse.json({
+      success: true,
       message: reply,
       response: reply,
-      content: reply
+      content: reply,
+      fontiWeb: datiRete ? true : false
     });
 
   } catch (error: any) {
-    console.error("Errore Gemini API:", error);
+    console.error("Errore API Ollama/Studio:", error);
     return NextResponse.json(
-      { error: `Errore Gemini API: ${error?.message || "Errore sconosciuto"}` },
+      { error: `Errore elaborazione: ${error?.message || "Errore sconosciuto"}` },
       { status: 500 }
     );
   }
