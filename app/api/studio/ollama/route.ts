@@ -1,35 +1,24 @@
 import { NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
+import { callGemini } from "@/lib/gemini";
 
 export async function POST(req: Request) {
   try {
-    const { messages, prompt } = await req.json();
+    const body = await req.json();
+    const { messages, prompt } = body;
     
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "GEMINI_API_KEY non configurata." }, { status: 500 });
-    }
-
-    // Estrae l'ultimo messaggio inviato dall'utente
     let textToAnalyze = "";
     if (typeof prompt === "string" && prompt.trim() !== "") {
       textToAnalyze = prompt;
     } else if (Array.isArray(messages) && messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      textToAnalyze = typeof lastMessage === "string" ? lastMessage : (lastMessage.content || lastMessage.text || "");
+      const lastMsg = messages[messages.length - 1];
+      textToAnalyze = typeof lastMsg === "string" ? lastMsg : (lastMsg.content || lastMsg.text || "");
     }
 
     if (!textToAnalyze) {
       textToAnalyze = "Ciao!";
     }
 
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: textToAnalyze,
-    });
-
-    const reply = response.text || "Nessuna risposta ricevuta da Gemini.";
+    const reply = await callGemini(textToAnalyze);
 
     return NextResponse.json({
       message: reply,

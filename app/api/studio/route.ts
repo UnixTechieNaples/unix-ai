@@ -1,3 +1,4 @@
+import { callGemini } from "@/lib/gemini";
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
