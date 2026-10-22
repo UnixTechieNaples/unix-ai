@@ -6,8 +6,7 @@ export const runtime = "nodejs";
 
 const TAVILY_KEY = process.env.TAVILY_API_KEY || "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";
 
-async function cercaSuTavilyOWeb(query: string): Promise<string> {
-  // 1. Tentativo con Tavily API
+async function cercaConTavily(query: string): Promise<string> {
   try {
     const res = await fetch("https://api.tavily.com/search", {
       method: "POST",
@@ -17,50 +16,25 @@ async function cercaSuTavilyOWeb(query: string): Promise<string> {
         query: query,
         search_depth: "advanced",
         include_answer: true,
-        max_results: 5
+        max_results: 6
       })
     });
 
     if (res.ok) {
       const data = await res.json();
-      let testoTavily = "";
+      let testo = "";
       if (data.answer) {
-        testoTavily += `Sintesi Tavily: ${data.answer}\n`;
+        testo += `${data.answer}\n\n`;
       }
       if (data.results && Array.isArray(data.results)) {
-        testoTavily += data.results.map((r: any) => `- ${r.title}: ${r.content}`).join("\n");
+        testo += data.results.map((r: any) => `- ${r.title}: ${r.content}`).join("\n");
       }
-      if (testoTavily.trim().length > 20) {
-        return testoTavily;
-      }
+      return testo.trim();
     }
   } catch (err) {
     console.error("Errore Tavily:", err);
   }
-
-  // 2. Fallback diretto HTML Web Scraping su DuckDuckGo se Tavily fallisce o è vuoto
-  try {
-    const htmlRes = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
-    });
-    if (htmlRes.ok) {
-      const html = await htmlRes.text();
-      const regex = /<a class="result__snippet[^>]*>(.*?)<\/a>/g;
-      const snippet = [];
-      let match;
-      while ((match = regex.exec(html)) !== null && snippet.length < 5) {
-        const t = match[1].replace(/<[^>]+>/g, "").trim();
-        if (t) snippet.push(t);
-      }
-      if (snippet.length > 0) {
-        return "Risultati web estratti direttamente:\n- " + snippet.join("\n- ");
-      }
-    }
-  } catch (err) {
-    console.error("Errore Scraping Web:", err);
-  }
-
-  return "Nessun risultato specifico trovato online in questo momento.";
+  return "";
 }
 
 export async function POST(req: Request) {
@@ -80,22 +54,31 @@ export async function POST(req: Request) {
       textToAnalyze = "Ciao!";
     }
 
-    // Ricerca live sulla rete
-    const informazioniLive = await cercaSuTavilyOWeb(textToAnalyze);
+    const datiWeb = await cercaConTavily(textToAnalyze);
 
-    let promptCompletato = `[ISTRUZIONE TASSATIVA E INDEROGABILE]: Sei UNIX-AI, un super-agente connesso a Internet. Rispondi SEMPRE ed ESCLUSIVAMENTE in lingua ITALIANA.\n\n` +
-      `Ti sono stati forniti dati aggiornati prelevati direttamente dalla rete in tempo reale:\n` +
-      `----------------------------------------\n` +
-      `${informazioniLive}\n` +
-      `----------------------------------------\n\n` +
-      `REGOLE ASSOLUTE:\n` +
-      `1. Utilizza OBBLIGATORIAMENTE le informazioni sopra per rispondere alla domanda dell'utente.\n` +
-      `2. È SEVERAMENTE VIETATO dire che non hai accesso a Internet o ai dati in tempo reale.\n` +
-      `3. È SEVERAMENTE VIETATO invitare l'utente a consultare siti esterni o app.\n` +
-      `4. Se i dati contengono notizie, calendari o informazioni, riassumili e formluali direttamente tu nella risposta.\n\n` +
-      `[DOMANDA DELL'UTENTE]: ${textToAnalyze}`;
+    let promptCompletato = `Sei UNIX-AI. Rispondi in italiano.\n\n`;
+    if (datiWeb) {
+      promptCompletato += `Informazioni fresche trovate in tempo reale sulla rete per la richiesta "${textToAnalyze}":\n${datiWeb}\n\nUsa queste informazioni per rispondere direttamente all'utente.`;
+    } else {
+      promptCompletato += `Rispondi alla domanda: ${textToAnalyze}`;
+    }
 
-    const reply = await chiamaGroq(promptCompletato);
+    let reply = await chiamaGroq(promptCompletato);
+
+    const replyLower = reply.toLowerCase();
+    if (
+      replyLower.includes("non dispongo") || 
+      replyLower.includes("non ho la possibilità") || 
+      replyLower.includes("non ho accesso") || 
+      replyLower.includes("ti consiglio di consultare") ||
+      replyLower.includes("al momento non")
+    ) {
+      if (datiWeb) {
+        reply = `Ecco i dati aggiornati trovati in tempo reale sulla rete:\n\n${datiWeb}`;
+      } else {
+        reply = `Ho cercato sulla rete ma al momento non ho trovato dettagli sufficienti per "${textToAnalyze}".`;
+      }
+    }
 
     return NextResponse.json({
       success: true,
