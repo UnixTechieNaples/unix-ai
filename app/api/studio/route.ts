@@ -239,7 +239,7 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
     `;
 
     let userMessageContent: any = userPrompt || "Analizza questo file allegato.";
-    let activeModel = "llama-3.3-70b-versatile";
+    let activeModel = "gemini-2.5-flash";
 
     if (attachedFile && attachedFile.type && attachedFile.type.startsWith('image/')) {
       activeModel = "llama-3.2-11b-vision-preview";
@@ -271,7 +271,7 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
     if (!rawContent) {
       return NextResponse.json({
         success: false,
-        reply: `Errore Groq Model: ${lastError}`,
+        reply: `Errore Gemini API: ${lastError}`,
         error: lastError
       }, { status: 500 });
     }

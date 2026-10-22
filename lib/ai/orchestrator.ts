@@ -2,7 +2,7 @@ import Groq from "groq-sdk";
 import { salvaUtente, getUtenti, checkIsSuperAdmin, getActiveUsersReport } from "@/lib/db/memory";
 
 const DEFAULT_MODEL_CANDIDATES = [
-  "llama-3.3-70b-versatile"
+  "gemini-2.5-flash"
 ];
 
 export async function processStudioCommand({ userPrompt, memoryContext, userId, userName, model }: { userPrompt: string; memoryContext?: string; userId?: string; userName?: string; model?: string }) {
@@ -97,7 +97,7 @@ REGOLE TASSATIVE:
     `;
 
     // Utilizzo sicuro e blindato del modello principale supportato
-    const modelCandidates = ["llama-3.3-70b-versatile"];
+    const modelCandidates = ["gemini-2.5-flash"];
 
     let replyText: string | null = null;
     let lastError = "";

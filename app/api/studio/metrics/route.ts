@@ -20,7 +20,7 @@ export async function GET(req: Request) {
       promptTokens: 31200,
       completionTokens: 17050,
       estimatedCostUsd: 0.0485,
-      activeModels: ["llama-3.3-70b-versatile", "openai/gpt-oss-20b"],
+      activeModels: ["gemini-2.5-flash", "openai/gpt-oss-20b"],
       timestamp: new Date().toISOString()
     };
 

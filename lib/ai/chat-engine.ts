@@ -39,7 +39,7 @@ export async function executeAIChat({ userId, messages, model }: ChatRequest) {
   `;
 
   // 4. Modello attivo e stabile verificato sulla dashboard di Groq
-  const ACTIVE_MODEL = 'llama-3.3-70b-versatile';
+  const ACTIVE_MODEL = 'gemini-2.5-flash';
 
   try {
     const completion = await groq.chat.completions.create({

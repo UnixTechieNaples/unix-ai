@@ -31,7 +31,7 @@ Il tuo compito è sintetizzare le loro prospettive in un'unica risposta magistra
     `;
 
     const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: "gemini-2.5-flash",
       messages: [
         { role: "system", content: hiveSystemPrompt },
         { role: "user", content: prompt }
