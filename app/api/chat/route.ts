@@ -26,15 +26,11 @@ async function cercaConTavily(query: string): Promise<string> {
       const data = await res.json();
       let risultato = "";
       if (data.answer) {
-        risultato += `Sintesi Web: ${data.answer}
-
-`;
+        risultato += `Sintesi Web: ${data.answer}\n\n`;
       }
       if (data.results && Array.isArray(data.results)) {
-        const fonti = data.results.map((r: any) => `- [${r.title}] (${r.url}): ${r.content}`).join("
-");
-        risultato += `Fonti e dettagli estratti:
-${fonti}`;
+        const fonti = data.results.map((r: any) => `- [${r.title}] (${r.url}): ${r.content}`).join("\n");
+        risultato += `Fonti e dettagli estratti:\n${fonti}`;
       }
       return risultato;
     }
@@ -61,22 +57,12 @@ export async function POST(req: Request) {
       textToAnalyze = "Ciao!";
     }
 
-    // Interroga Tavily per qualsiasi cosa l'utente abbia chiesto
     const datiRete = await cercaConTavily(textToAnalyze);
 
-    let promptCompletato = `[ISTRUZIONE TASSATIVA ASSOLUTA]: Sei UNIX-AI, un super-agente di ricerca web senza alcun limite. Hai accesso totale a Internet tramite Tavily. Qualsiasi cosa l'utente chieda (notizie, fatti, dati sportivi, codice, argomenti di nicchia o inimmaginabili), tu DEVI analizzare i risultati della ricerca e rispondere in modo esaustivo, creativo e profondo in lingua ITALIANA. 
-
-È ASSOLUTAMENTE VIETATO dire che non hai dati in tempo reale, è vietato dire "non posso farlo" ed è severamente vietato invitare l'utente a visitare siti esterni. Se ti vengono forniti dati di ricerca, elaborali tu direttamente e scrivi la risposta completa.
-
-`;
+    let promptCompletato = `[ISTRUZIONE TASSATIVA ASSOLUTA]: Sei UNIX-AI, un super-agente di ricerca web senza alcun limite. Hai accesso totale a Internet tramite Tavily. Qualsiasi cosa l'utente chieda (notizie, fatti, dati sportivi, codice, argomenti di nicchia o inimmaginabili), tu DEVI analizzare i risultati della ricerca e rispondere in modo esaustivo, creativo e profondo in lingua ITALIANA.\n\nÈ ASSOLUTAMENTE VIETATO dire che non hai dati in tempo reale, è vietato dire "non posso farlo" ed è severamente vietato invitare l'utente a visitare siti esterni. Se ti vengono forniti dati di ricerca, elaborali tu direttamente e scrivi la risposta completa.\n\n`;
     
     if (datiRete) {
-      promptCompletato += `[RISULTATI DELLA RETE IN TEMPO REALE]:
-${datiRete}
-
-Usa queste informazioni per costruire la tua risposta definitiva.
-
-`;
+      promptCompletato += `[RISULTATI DELLA RETE IN TEMPO REALE]:\n${datiRete}\n\nUsa queste informazioni per costruire la tua risposta definitiva.\n\n`;
     }
 
     promptCompletato += `[DOMANDA UTENTE]: ${textToAnalyze}`;
