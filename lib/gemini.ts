@@ -1,31 +1,16 @@
-import { GoogleGenAI } from "@google/genai";
+import Groq from "groq-sdk";
 
-export async function callGemini(promptText: string, retries = 3): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
+export async function callGemini(promptText: string): Promise<string> {
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY non configurata nelle variabili d'ambiente.");
+    throw new Error("GROQ_API_KEY non configurata nelle variabili d'ambiente.");
   }
 
-  const ai = new GoogleGenAI({ apiKey });
+  const groq = new Groq({ apiKey });
+  const completion = await groq.chat.completions.create({
+    model: "llama-3.3-70b-versatile",
+    messages: [{ role: "user", content: promptText }],
+  });
 
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents: promptText,
-      });
-
-      return response.text || "Nessuna risposta generata da Gemini.";
-    } catch (error: any) {
-      const isOverloaded = error?.message?.includes("503") || error?.message?.includes("high demand") || error?.status === 503;
-      if (isOverloaded && attempt < retries) {
-        console.warn(`Tentativo ${attempt} fallito per sovraccarico (503). Riprovo tra ${attempt * 2} secondi...`);
-        await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
-        continue;
-      }
-      throw error;
-    }
-  }
-
-  throw new Error("I server di Gemini sono attualmente sovraccarichi. Riprova tra qualche istante.");
+  return completion.choices[0]?.message?.content || "Nessuna risposta generata da Groq.";
 }
