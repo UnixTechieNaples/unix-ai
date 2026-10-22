@@ -3,6 +3,11 @@ import Groq from "groq-sdk";
 const TAVILY_KEY = process.env.TAVILY_API_KEY || "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";
 
 async function cercaConTavily(query: string): Promise<string> {
+  const q = query.trim().toLowerCase();
+  if (["ciao", "salve", "buongiorno", "buonasera", "come stai", "chi sei"].includes(q) || q.length < 5) {
+    return "";
+  }
+
   try {
     const res = await fetch("https://api.tavily.com/search", {
       method: "POST",
@@ -12,7 +17,7 @@ async function cercaConTavily(query: string): Promise<string> {
         query: query,
         search_depth: "advanced",
         include_answer: true,
-        max_results: 6
+        max_results: 5
       })
     });
 
@@ -39,14 +44,14 @@ export async function chiamaGroq(promptTesto: string): Promise<string> {
     throw new Error("GROQ_API_KEY non configurata nelle variabili d'ambiente.");
   }
 
-  // Interroghiamo Tavily preventivamente per qualsiasi richiesta
   const datiWeb = await cercaConTavily(promptTesto);
 
-  let promptFinale = `Sei UNIX-AI, un assistente virtuale intelligente. Rispondi SEMPRE ed ESCLUSIVAMENTE in lingua ITALIANA.\n\n`;
+  let promptFinale = `Sei UNIX-AI, un assistente vocale intelligente ed efficiente. Rispondi SEMPRE ed ESCLUSIVAMENTE in lingua ITALIANA in modo naturale, conciso e parlato (senza usare tabelle o elenchi puntati complessi, perché il testo verrà letto ad alta voce).\n\n`;
+  
   if (datiWeb) {
-    promptFinale += `Informazioni fresche trovate in tempo reale sulla rete per la richiesta:\n${datiWeb}\n\nUsa queste informazioni per rispondere direttamente e in modo dettagliato all'utente.`;
+    promptFinale += `Informazioni fresche trovate in tempo reale sulla rete per la richiesta:\n${datiWeb}\n\nUsa queste informazioni per rispondere direttamente all'utente in modo discorsivo.`;
   } else {
-    promptFinale += `Rispondi alla domanda: ${promptTesto}`;
+    promptFinale += `Rispondi in modo naturale, discorsivo e diretto alla richiesta dell'utente: "${promptTesto}"`;
   }
 
   const groq = new Groq({ apiKey: chiaveApi });
@@ -55,7 +60,7 @@ export async function chiamaGroq(promptTesto: string): Promise<string> {
     messages: [
       {
         role: "system",
-        content: "Sei UNIX-AI. Rispondi sempre in italiano. Se ti vengono forniti dati di ricerca web, usali per rispondere in modo completo."
+        content: "Sei UNIX-AI, un assistente vocale. Parla sempre in italiano in modo discorsivo e naturale. Evita assolutamente l'uso di tabelle, elenchi puntati con asterischi o simboli markdown, poiché il testo deve essere perfetto per la sintesi vocale."
       },
       {
         role: "user",
@@ -64,21 +69,15 @@ export async function chiamaGroq(promptTesto: string): Promise<string> {
     ],
   });
 
-  let reply = completamento.choices[0]?.message?.content || "Nessuna risposta generata da Groq.";
+  let rispostaGrezza = completamento.choices[0]?.message?.content || "Nessuna risposta generata da Groq.";
 
-  // Controllo di sicurezza: se l'IA fa resistenza o dice che non ha accesso, forziamo i dati di Tavily
-  const replyLower = reply.toLowerCase();
-  if (
-    replyLower.includes("non dispongo") || 
-    replyLower.includes("non ho la possibilità") || 
-    replyLower.includes("non ho accesso") || 
-    replyLower.includes("ti consiglio di consultare") ||
-    replyLower.includes("al momento non")
-  ) {
-    if (datiWeb) {
-      return `Ecco i dati aggiornati trovati in tempo reale sulla rete:\n\n${datiWeb}`;
-    }
-  }
+  // Rimuove simboli di formattazione indesiderati per la voce (asterischi, cancelletti, markdown)
+  let rispostaPulita = rispostaGrezza
+    .replace(/\*\*/g, "") // Rimuove il grassetto **
+    .replace(/\*/g, "")    // Rimuove gli asterischi *
+    .replace(/#/g, "")      // Rimuove i cancelletti dei titoli #
+    .replace(/`/g, "")      // Rimuove i backtick di codice `
+    .trim();
 
-  return reply;
+  return rispostaPulita;
 }
