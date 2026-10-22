@@ -1,4 +1,3 @@
-cat << 'EOF' > app/api/studio/ollama/route.ts
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
@@ -79,7 +78,6 @@ export async function POST(req: Request) {
 
     const lowerPrompt = (userPrompt || "").toLowerCase();
 
-    // Self-Coding Agent Logic
     const isModificationRequest = 
       lowerPrompt.includes("modifica") || 
       lowerPrompt.includes("aggiungi") || 
@@ -132,7 +130,7 @@ export async function POST(req: Request) {
                 `export default function StudioDashboard() {\n${speechLogicToAdd}`
               );
 
-              if (currentCode.includes("type=\"text\"") && !currentCode.includes("🎤 Parla")) {
+              if (currentCode.includes('type="text"') && !currentCode.includes("🎤 Parla")) {
                 currentCode = currentCode.replace(
                   /<form /g,
                   `<button type="button" onClick={toggleListening} className="px-3 py-2 bg-slate-900 border border-cyan-500/40 text-cyan-300 rounded-lg text-sm font-bold hover:bg-cyan-500/20 transition">
@@ -162,7 +160,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // Web Search
     let webSearchResults = "";
     const needsSearch = 
       lowerPrompt.includes("cerca") || 
@@ -249,7 +246,7 @@ REGOLE TASSATIVE:
 
     let parsedResponse;
     try {
-      const cleanedJsonString = rawContent.replace(/```json/g, "").replace(/```/g, "").trim();
+      const cleanedJsonString = rawContent.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
       parsedResponse = JSON.parse(cleanedJsonString);
     } catch (parseErr) {
       parsedResponse = {
@@ -316,4 +313,3 @@ export async function PUT(req: Request) {
 export async function DELETE(req: Request) {
   return NextResponse.json({ success: true, message: "Eliminazione completata." });
 }
-EOF
