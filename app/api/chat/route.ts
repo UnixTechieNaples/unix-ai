@@ -4,52 +4,46 @@ import { chiamaGroq } from "@/lib/cliente-groq";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// Funzione avanzata per cercare su Internet
-async function cercaSuInternetAvanzata(query: string): Promise<string> {
+async function ottieniMeteoLive(citta: string): Promise<string> {
   try {
-    // 1. Prova prima la ricerca meteo/notizie diretta tramite wttr.in se la domanda riguarda il meteo
-    if (query.toLowerCase().includes("meteo") || query.toLowerCase().includes("tempo")) {
-      try {
-        const meteoRes = await fetch(`https://wttr.in/Napoli?format=3`, { headers: { "User-Agent": "curl/7.68.0" } });
-        if (meteoRes.ok) {
-          const testoMeteo = await meteoRes.text();
-          if (testoMeteo && testoMeteo.trim().length > 0) {
-            return `Meteo live rilevato: ${testoMeteo.trim()}`;
-          }
-        }
-      } catch (e) {
-        console.error("Errore meteo direct:", e);
-      }
-    }
-
-    // 2. Ricerca generica web tramite DuckDuckGo Lite HTML
-    const res = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-      }
-    });
-
+    // Coordinate approssimative per Napoli (40.8522, 14.2681)
+    const url = "https://api.open-meteo.com/v1/forecast?latitude=40.8522&longitude=14.2681&current_weather=true&timezone=Europe%2FRome";
+    const res = await fetch(url);
     if (!res.ok) return "";
-    const html = await res.text();
-    
-    // Estrazione dei snippet dai risultati della ricerca
-    const regex = /<a class="result__snippet[^>]*>(.*?)<\/a>/g;
-    const corrispondenze = [];
-    let match;
-    while ((match = regex.exec(html)) !== null && corrispondenze.length < 4) {
-      const testoPulito = match[1].replace(/<[^>]+>/g, '').trim();
-      if (testoPulito) corrispondenze.push(testoPulito);
+    const data = await res.json();
+    if (data && data.current_weather) {
+      const temp = data.current_weather.temperature;
+      const vento = data.current_weather.windspeed;
+      return `Dati meteo live per Napoli: Temperatura ${temp}°C, Velocità vento ${vento} km/h.`;
     }
-
-    if (corrispondenze.length > 0) {
-      return "Risultati live dal web:\n- " + corrispondenze.join("\n- ");
-    }
-
-    return "";
-  } catch (err) {
-    console.error("Errore durante la ricerca web:", err);
-    return "";
+  } catch (e) {
+    console.error("Errore meteo:", e);
   }
+  return "";
+}
+
+async function cercaSuInternet(query: string): Promise<string> {
+  const queryLower = query.toLowerCase();
+  
+  // Se la richiesta riguarda il meteo a Napoli o in generale
+  if (queryLower.includes("meteo") || queryLower.includes("tempo") || queryLower.includes("napoli")) {
+    const datiMeteo = await ottieniMeteoLive("Napoli");
+    if (datiMeteo) return datiMeteo;
+  }
+
+  try {
+    const res = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.AbstractText) {
+        return `Informazione estratta dal web: ${data.AbstractText}`;
+      }
+    }
+  } catch (err) {
+    console.error("Errore ricerca web:", err);
+  }
+
+  return "";
 }
 
 export async function POST(req: Request) {
@@ -57,22 +51,31 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const messaggioUtente = body?.message || body?.messages?.[body?.messages?.length - 1]?.content || "Ciao";
 
-    // Esegui la ricerca su Internet
-    const informazioniLive = await cercaSuInternetAvanzata(messaggioUtente);
+    const infoLive = await cercaSuInternet(messaggioUtente);
 
-    // Costruisci il prompt con istruzioni chiare per l'IA
-    let promptFinale = messaggioUtente;
-    if (informazioniLive) {
-      promptFinale = `[INFORMAZIONI IN TEMPO REALE OTTERNUTE DA INTERNET]:\n${informazioniLive}\n\n[ISTRUZIONE]: Rispondi all'utente utilizzando le informazioni in tempo reale fornite sopra.\n\n[DOMANDA UTENTE]: ${messaggioUtente}`;
+    // Prompt con istruzioni TASSATIVE sull'italiano e dati live inclusi
+    let promptConContesto = `[ISTRUZIONE TASSATIVA]: Rispondi OBBLIGATORIAMENTE ed ESCLUSIVAMENTE in lingua ITALIANA. Non usare mai l'inglese.
+
+`;
+    
+    if (infoLive) {
+      promptConContesto += `[DATI IN TEMPO REALE DA INTERNET]:
+${infoLive}
+
+Usa i dati sopra per rispondere alla domanda dell'utente.
+
+`;
     }
 
-    const rispostaIstruita = await chiamaGroq(promptFinale);
+    promptConContesto += `[DOMANDA UTENTE]: ${messaggioUtente}`;
+
+    const rispostaIstruita = await chiamaGroq(promptConContesto);
 
     return NextResponse.json({
       success: true,
       response: rispostaIstruita,
       message: rispostaIstruita,
-      fontiWeb: informazioniLive ? true : false
+      fontiWeb: infoLive ? true : false
     });
   } catch (errore: any) {
     return NextResponse.json(
