@@ -30,7 +30,7 @@ Dietro le quinte, tre sub-agenti virtuali hanno analizzato la richiesta:
 Il tuo compito è sintetizzare le loro prospettive in un'unica risposta magistrale, fluida, coesa e autorevole, parlando con un'unica voce unitaria. Evita elenchi puntati o tabelle rigide; rispondi in modo discorsivo, chiaro e orientato all'azione.
     `;
 
-    const aiResponse = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    const aiResponse = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: promptText || message || 'Analizza e rispondi.' });
     const textContent = aiResponse.text || '';
     const completion = { choices: [{ message: { content: textContent } }] };
 

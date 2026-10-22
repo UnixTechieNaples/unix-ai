@@ -253,7 +253,7 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
     let lastError = "";
 
     try {
-      const aiResponse = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+      const aiResponse = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: promptText || message || 'Analizza e rispondi.' });
     const textContent = aiResponse.text || '';
     const completion = { choices: [{ message: { content: textContent } }] };
 
