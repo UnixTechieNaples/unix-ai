@@ -12,7 +12,7 @@ export async function chiamaGroq(promptTesto: string): Promise<string> {
     messages: [
       {
         role: "system",
-        content: "Sei UNIX-AI, l'assistente ufficiale. DEVI RISPONDERE SEMPRE ED ESCLUSIVAMENTE IN LINGUA ITALIANA. È severamente vietato rispondere in inglese o altre lingue."
+        content: "Sei UNIX-AI. Rispondi sempre ed esclusivamente in lingua ITALIANA. Utilizza tutte le informazioni live fornite dal web per dare risposte aggiornate."
       },
       {
         role: "user",
