@@ -8,7 +8,7 @@ export async function chiamaGroq(promptTesto: string): Promise<string> {
 
   const groq = new Groq({ apiKey: chiaveApi });
   const completamento = await groq.chat.completions.create({
-    model: "llama3-8b-8192",
+    model: "openai/gpt-oss-20b",
     messages: [{ role: "user", content: promptTesto }],
   });
 
