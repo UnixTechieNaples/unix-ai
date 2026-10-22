@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
-import Groq from "groq-sdk";
+import { GoogleGenAI } from "@google/genai";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "GROQ_API_KEY mancante." }, { status: 500 });
     }
 
-    const groq = new Groq({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const projectRoot = process.cwd();
     let scannedFilesData: { filename: string; content: string }[] = [];
 
@@ -57,7 +57,7 @@ Se non trovi problemi critici, imposta "hasBug": false.
     `;
 
     const completion = await groq.chat.completions.create({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash",
       messages: [{ role: "system", content: systemPrompt }],
       temperature: 0.2,
       max_tokens: 1024

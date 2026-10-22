@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import Groq from "groq-sdk";
+import { GoogleGenAI } from "@google/genai";
 import { commitFileToGitHub } from "@/lib/ai/githubCommitter";
 
 export const dynamic = 'force-dynamic';
@@ -14,11 +14,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, error: "GROQ_API_KEY mancante." }, { status: 500 });
     }
 
-    const groq = new Groq({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
     // L'IA riflette autonomamente su cosa analizzare o migliorare con il modello aggiornato
     const completion = await groq.chat.completions.create({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash",
       messages: [
         {
           role: "system",

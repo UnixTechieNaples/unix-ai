@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import Groq from "groq-sdk";
+import { GoogleGenAI } from "@google/genai";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -11,7 +11,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "GROQ_API_KEY mancante." }, { status: 500 });
     }
 
-    const groq = new Groq({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
     const systemPrompt = `
 SEI IL TECH RADAR AGENT DEL UNIX-AI PRO STUDIO.
@@ -28,7 +28,7 @@ Rispondi ESCLUSIVAMENTE in formato JSON valido:
     `;
 
     const completion = await groq.chat.completions.create({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash",
       messages: [{ role: "system", content: systemPrompt }],
       temperature: 0.6,
       max_tokens: 1024

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import Groq from "groq-sdk";
+import { GoogleGenAI } from "@google/genai";
 import { getNeuroniUtente, salvaNeuroneUtente } from "@/lib/db/memory";
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "GROQ_API_KEY mancante." }, { status: 500 });
     }
 
-    const groq = new Groq({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
     // Recupera i neuroni attuali dell'utente
     const neuroni = await getNeuroniUtente(userId);
@@ -43,7 +43,7 @@ Rispondi ESCLUSIVAMENTE in formato JSON valido:
     `;
 
     const completion = await groq.chat.completions.create({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash",
       messages: [{ role: "system", content: systemPrompt }],
       temperature: 0.5,
       max_tokens: 1024
