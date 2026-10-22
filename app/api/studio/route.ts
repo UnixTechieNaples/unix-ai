@@ -239,7 +239,7 @@ REGOLE TASSATIVE DI FORMATTO E COMPORTAMENTO:
     `;
 
     let userMessageContent: any = userPrompt || "Analizza questo file allegato.";
-    let activeModel = "gemini-2.5-flash";
+    let activeModel = "gemini-3.8-flash";
 
     if (attachedFile && attachedFile.type && attachedFile.type.startsWith('image/')) {
       activeModel = "llama-3.2-11b-vision-preview";

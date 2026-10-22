@@ -18,7 +18,7 @@ export async function GET(req: Request) {
 
     // L'IA riflette autonomamente su cosa analizzare o migliorare con il modello aggiornato
     const completion = await groq.chat.completions.create({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.8-flash",
       messages: [
         {
           role: "system",
